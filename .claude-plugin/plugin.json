@@ -18,7 +18,7 @@
     "automation",
     "campaigns",
     "rate-limiting",
-    "browser-use"
+    "claudekit-extension"
   ],
   "skills": [
     ".claude/skills/outreach-manager",
@@ -87,14 +87,16 @@
       ],
       "required_env": ["EXA_API_KEY"]
     },
-    "browser-use": {
-      "description": "Browser automation for LinkedIn, Twitter, Instagram",
+    "claudekit-extension": {
+      "description": "ClaudeKit Browser Extension for LinkedIn, Twitter, Instagram automation",
+      "connection": "WebSocket at ws://localhost:3000/ws",
+      "api": "HTTP API at http://localhost:3000/api",
       "tools": [
-        "browser_task",
-        "list_browser_profiles",
-        "monitor_task",
-        "get_cookies",
-        "execute_skill"
+        "linkedin_action",
+        "twitter_action",
+        "instagram_action",
+        "extension_status",
+        "rate_limits"
       ]
     }
   },

@@ -1,59 +1,157 @@
-# Workflow Command
+# Workflow Command - Visual Canvas First! 🎨
 
-Routes to `workflow-engine` skill for creating and running multi-platform outreach workflows.
+Create and execute multi-platform outreach workflows using the visual canvas.
+
+**Developed by 10x.in**
+
+## 🎯 Simple 4-Step Process
+
+```
+1. Design Visually → 2. User Approves → 3. Save with ID → 4. Execute
+```
 
 ## Usage
 
-```
-/workflow [action] [options]
-```
-
-## Actions
-
-- `/workflow` - Show active workflows
-- `/workflow run` - **Run workflow from Visual Canvas** (reads from queue)
-- `/workflow create` - Create a new workflow
-- `/workflow load <file>` - Load workflow from YAML
-- `/workflow list` - List all workflows
-- `/workflow status <id>` - Show workflow status
-- `/workflow pause <id>` - Pause a running workflow
-- `/workflow resume <id>` - Resume a paused workflow
-- `/workflow cancel <id>` - Cancel a workflow
-
-## Canvas Integration
-
-When you design a workflow in the Visual Canvas (http://localhost:3006) and click **Run**:
-1. The workflow is saved to `output/workflow-queue/latest.json`
-2. Come here and say `/workflow run` to execute it
-3. The workflow engine reads the nodes and connections
-4. Each skill node is executed in order with proper rate limiting
-
-## Examples
+### Create Workflow (Visual Canvas)
 
 ```
-/workflow                           # List active workflows
-/workflow run                       # Run workflow from Visual Canvas
-/workflow create                    # Start workflow creation wizard
-/workflow load ai_founders.yaml     # Load from YAML definition
-/workflow status abc123             # Check workflow progress
-/workflow pause abc123              # Pause running workflow
+/workflow create for <target audience>
 ```
 
-## Workflow Phases
+**Example:**
+```
+/workflow create for AI founders on LinkedIn and Twitter
+```
 
-Workflows consist of phases that execute in sequence:
+**What happens:**
+1. ✅ Canvas opens at **http://localhost:3000**
+2. ✅ Visual workflow appears with nodes automatically
+3. ✅ User reviews and approves the design
+4. ✅ User clicks "Save" → Gets unique ID (e.g., `a3f7c921`)
+5. ✅ Status: `pending` (ready to run)
 
-1. **Warm-up** - View profiles, establish presence
-2. **Engage** - Like posts, comment, show interest
-3. **Connect** - Send connection requests, follow
-4. **Outreach** - Send messages, DMs, emails
+### Run Workflow
 
-## Skill Reference
+```
+/workflow run <workflow_id>
+```
 
-This command uses the `workflow-engine` skill located at `.claude/skills/workflow-engine/SKILL.md`.
+or
 
-Integrates with:
-- `discovery-engine` - Find targets
-- `team-manager` - Get credentials
-- `rate_limiter.py` - Intelligent delays
-- Browser-Use MCP - Execute platform actions
+```
+/workflow run latest
+```
+
+**Example:**
+```
+/workflow run a3f7c921
+```
+
+### Check Status
+
+```
+/workflow status <workflow_id>
+```
+
+### List All Workflows
+
+```
+/workflow list
+```
+
+Shows table with ID, Name, Status, Platforms, Nodes, Created date.
+
+### Pause/Resume
+
+```
+/workflow pause <workflow_id>
+/workflow resume <workflow_id>
+```
+
+## 📍 Ports (IMPORTANT!)
+
+- **Canvas Frontend**: http://localhost:3000 (TLDraw)
+- **WebSocket**: ws://localhost:3001/ws (Commands)
+- **API**: http://localhost:3000/api (REST)
+
+## 🔧 How It Works
+
+### 1. Canvas Design Phase
+- Visual drag-and-drop interface
+- Add nodes: Discovery, LinkedIn, Twitter, Instagram, Email, Delay
+- Connect nodes with arrows to define flow
+- See complete workflow before executing
+
+### 2. Workflow Database
+- Each workflow gets unique 8-character ID
+- Status tracking: `pending`, `running`, `completed`, `failed`, `paused`
+- Execution history with timestamps
+- Full audit trail
+
+### 3. Execution Phase
+- Reads canvas JSON
+- Executes nodes in order following connections
+- Updates status in real-time
+- Logs every action
+
+### 4. Integration
+- **Browser Extension**: `./browser-extension/` for LinkedIn/Twitter/Instagram
+- **Exa.ai MCP**: Intelligent people discovery
+- **Gmail API**: Email sending
+- **Rate Limiting**: Automatic safe delays
+
+## 📊 Workflow Status Codes
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Saved, ready to run |
+| `running` | Currently executing |
+| `completed` | Successfully finished |
+| `failed` | Error occurred |
+| `paused` | Execution paused by user |
+
+## 🚀 Quick Example
+
+```bash
+# User says:
+/workflow create for startup founders
+
+# System:
+✅ Canvas opened at http://localhost:3000
+✅ Workflow created with 6 nodes
+✅ Review workflow → Click "Save"
+✅ Workflow ID: a3f7c921
+✅ Status: pending
+
+# User says:
+/workflow run a3f7c921
+
+# System:
+✅ Status: running
+✅ Executing Discovery...
+✅ Found 50 startup founders
+✅ Executing LinkedIn View Profile...
+✅ Viewed 50 profiles
+... (continues)
+✅ Status: completed
+```
+
+## 🗂️ Files
+
+- **Database**: `./output/workflows/workflow_db.json`
+- **Workflows**: `./output/workflows/<workflow_id>.json`
+- **Logs**: `./output/logs/<workflow_id>_<timestamp>.log`
+
+## ⚠️ Important Rules
+
+1. **Canvas First**: ALWAYS design in canvas first
+2. **User Approval**: User MUST approve before execution
+3. **Port 3000**: Canvas frontend on port 3000
+4. **Port 3001**: WebSocket on port 3001
+5. **Unique IDs**: Every workflow gets unique ID
+6. **Status Tracking**: All workflows tracked in database
+
+---
+
+**Powered by TLDraw + ClaudeKit Extension + Exa.ai MCP**
+**Developed by 10x.in** 🔥

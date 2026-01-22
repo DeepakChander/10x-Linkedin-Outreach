@@ -3,7 +3,7 @@
 Twitter/X Adapter for 100X Outreach System
 
 Provides Twitter automation actions using WebSocket connection.
-Connects to ws://localhost:3000/ws for platform-specific actions.
+Connects to ws://localhost:3001/ws for platform-specific actions.
 """
 
 import json
@@ -31,7 +31,7 @@ except ImportError:
 
 @dataclass
 class TwitterAction:
-    """A Twitter action to be executed via Browser-Use"""
+    """A Twitter action to be executed via ClaudeKit Browser Extension"""
     action_type: str
     target_handle: str  # @username
     target_name: str
@@ -89,7 +89,7 @@ class TwitterAdapter:
         }
     }
 
-    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3000/ws'):
+    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3001/ws'):
         self.data_dir = Path(data_dir)
         self.ws_url = ws_url
         self.ws = None

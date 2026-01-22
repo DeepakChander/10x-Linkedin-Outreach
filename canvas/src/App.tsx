@@ -217,8 +217,8 @@ function App() {
       wsRef.current.close()
     }
 
-    // Try to connect to WebSocket server
-    const ws = new WebSocket('ws://localhost:3000/ws')
+    // Try to connect to WebSocket server on port 3001
+    const ws = new WebSocket('ws://localhost:3001/ws')
     wsRef.current = ws
 
     ws.onopen = () => {
@@ -457,7 +457,7 @@ function App() {
 ║  • Click ▶ Run to save workflow                              ║
 ║  • Say "/workflow run" in Claude Code                        ║
 ║                                                              ║
-║  Powered by Claude Code + TLDraw + Browser-Use MCP           ║
+║  Powered by Claude Code + TLDraw + ClaudeKit Extension    ║
 ╚══════════════════════════════════════════════════════════════╝
     `)
 

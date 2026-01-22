@@ -10,7 +10,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const HTTP_PORT = process.env.PORT || 3000;
+const WS_PORT = process.env.WS_PORT || 3001;
 
 // Middleware
 app.use(cors());
@@ -19,8 +20,9 @@ app.use(express.json());
 // Create HTTP server
 const server = createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocketServer({ server, path: '/ws' });
+// Create separate WebSocket server on different port
+const wsServer = createServer();
+const wss = new WebSocketServer({ server: wsServer, path: '/ws' });
 
 // Store commands queue (for backwards compatibility)
 const commandsQueue = [];
@@ -732,15 +734,20 @@ if (fs.existsSync(activityLogPath)) {
   }
 }
 
-// Start server
-server.listen(PORT, () => {
+// Start HTTP server
+server.listen(HTTP_PORT, () => {
+  console.log(`✅ HTTP Server started on http://localhost:${HTTP_PORT}`);
+});
+
+// Start WebSocket server on separate port
+wsServer.listen(WS_PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
 ║        10x-Team Canvas WebSocket Server Started              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
-║  HTTP Server:    http://localhost:${PORT}                       ║
-║  WebSocket:      ws://localhost:${PORT}/ws                      ║
+║  HTTP Server:    http://localhost:${HTTP_PORT}                       ║
+║  WebSocket:      ws://localhost:${WS_PORT}/ws                       ║
 ║                                                              ║
 ║  Canvas Commands (WebSocket):                                ║
 ║  POST /api/canvas/command        - Send single command      ║
@@ -766,7 +773,7 @@ server.listen(PORT, () => {
 ║  GET  /health                    - Health check             ║
 ║                                                              ║
 ║  Features:                                                   ║
-║  ✅ WebSocket real-time updates                              ║
+║  ✅ WebSocket real-time updates (Port ${WS_PORT})                   ║
 ║  ✅ Extension client tracking                                ║
 ║  ✅ Command result handling                                  ║
 ║  ✅ Activity tracking & logging                              ║

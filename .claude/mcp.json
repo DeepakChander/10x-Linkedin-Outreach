@@ -1,19 +1,47 @@
 {
   "mcpServers": {
-    "browser-use": {
-      "type": "cloud",
-      "provider": "claude-code",
-      "description": "Browser automation via Browser-Use MCP (cloud-hosted)",
+    "exa": {
+      "type": "http",
+      "url": "https://mcp.exa.ai/mcp?exaApiKey=4bc627c0-4958-4a07-8ba8-d3e76ef75735",
+      "description": "Exa AI search capabilities - web search, code search, company research, LinkedIn search",
       "tools": [
-        "mcp__browser-use__browser_task",
-        "mcp__browser-use__list_browser_profiles",
-        "mcp__browser-use__monitor_task",
-        "mcp__browser-use__list_skills",
-        "mcp__browser-use__execute_skill",
-        "mcp__browser-use__get_cookies"
+        "web_search_exa",
+        "get_code_context_exa",
+        "company_research_exa",
+        "crawl_web_exa",
+        "linkedin_search_exa",
+        "deep_researcher_exa"
       ],
-      "note": "Browser-Use MCP is available directly in Claude Code - no local installation required"
+      "note": "Exa AI neural semantic search with full tool access"
+    },
+    "exa-websets": {
+      "type": "http",
+      "url": "https://websetsmcp.exa.ai/mcp?exaApiKey=4bc627c0-4958-4a07-8ba8-d3e76ef75735",
+      "description": "Exa Websets - Curated collections of websites for AI agents. Create, manage, and search through custom web datasets.",
+      "tools": [
+        "create_webset",
+        "get_webset",
+        "list_websets",
+        "add_to_webset",
+        "remove_from_webset",
+        "search_webset"
+      ],
+      "note": "Websets allow you to organize and search through curated collections of web pages."
     }
+  },
+  "browserExtension": {
+    "path": "./browser-extension",
+    "description": "ClaudeKit Browser Extension for LinkedIn, Twitter, and Instagram automation",
+    "websocketUrl": "ws://localhost:3001/ws",
+    "apiUrl": "http://localhost:3000/api",
+    "note": "Install the browser extension from ./browser-extension folder"
+  },
+  "canvas": {
+    "frontendUrl": "http://localhost:3000",
+    "websocketUrl": "ws://localhost:3001/ws",
+    "apiUrl": "http://localhost:3000/api",
+    "workflowsPath": "./output/workflows",
+    "note": "TLDraw canvas runs on port 3000, WebSocket on port 3001"
   },
   "skills": {
     "discovery-engine": {
@@ -33,15 +61,15 @@
       "path": ".claude/skills/gmail-adapter/SKILL.md"
     },
     "linkedin-adapter": {
-      "description": "LinkedIn automation via Browser-Use",
+      "description": "LinkedIn automation via ClaudeKit Browser Extension",
       "path": ".claude/skills/linkedin-adapter/SKILL.md"
     },
     "twitter-adapter": {
-      "description": "Twitter automation via Browser-Use",
+      "description": "Twitter automation via ClaudeKit Browser Extension",
       "path": ".claude/skills/twitter-adapter/SKILL.md"
     },
     "instagram-adapter": {
-      "description": "Instagram automation via Browser-Use",
+      "description": "Instagram automation via ClaudeKit Browser Extension",
       "path": ".claude/skills/instagram-adapter/SKILL.md"
     },
     "outreach-manager": {

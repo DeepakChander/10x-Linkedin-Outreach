@@ -80,7 +80,7 @@ class TeamManager:
     - Add/remove team members
     - Configure platform credentials per member
     - Track authentication status
-    - Browser-Use profile management
+    - Browser extension credentials management
     """
 
     def __init__(self, data_dir: str = "credentials"):
@@ -216,7 +216,7 @@ class TeamManager:
         return True
 
     def set_browser_profile(self, member_id: str, platform: str, profile_id: str) -> bool:
-        """Set the Browser-Use profile ID for a member's platform"""
+        """Set the browser extension credentials for a member's platform"""
         member = self.get_member(member_id)
         if not member or platform not in member.platforms:
             return False
@@ -229,7 +229,7 @@ class TeamManager:
         return True
 
     def get_browser_profile(self, member_id: str, platform: str) -> Optional[str]:
-        """Get the Browser-Use profile ID for a member's platform"""
+        """Get the browser extension credentials for a member's platform"""
         member = self.get_member(member_id)
         if not member or platform not in member.platforms:
             return None
@@ -407,7 +407,7 @@ def main():
     config_parser.add_argument('--disable', action='store_true', help='Disable platform')
     config_parser.add_argument('--profile-url', help='Profile URL')
     config_parser.add_argument('--handle', help='Username/handle')
-    config_parser.add_argument('--browser-profile', help='Browser-Use profile ID')
+    config_parser.add_argument('--browser-profile', help='Browser extension credentials ID')
     config_parser.add_argument('--daily-limit', type=int, help='Daily action limit')
     config_parser.add_argument('--hourly-limit', type=int, help='Hourly action limit')
 

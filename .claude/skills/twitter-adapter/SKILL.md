@@ -23,7 +23,7 @@ Automates Twitter/X actions using the ClaudeKit Universal Browser Extension with
 
 **Fast, local browser automation!** The ClaudeKit extension provides direct control over your browser via WebSocket.
 
-Benefits over Browser-Use MCP:
+Benefits of WebSocket integration:
 - ✅ **Faster**: Local execution, no cloud latency
 - ✅ **Free**: No usage costs
 - ✅ **Visible**: See actions in real-time

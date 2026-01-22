@@ -5,7 +5,7 @@ LinkedIn Adapter for 100X Outreach System
 Provides LinkedIn automation actions using WebSocket connection.
 All actions are executed through authenticated browser profiles.
 
-This adapter connects to ws://localhost:3000/ws and sends platform-specific actions.
+This adapter connects to ws://localhost:3001/ws and sends platform-specific actions.
 """
 
 import json
@@ -91,7 +91,7 @@ class LinkedInAdapter:
         }
     }
 
-    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3000/ws'):
+    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3001/ws'):
         self.data_dir = Path(data_dir)
         self.ws_url = ws_url
         self.ws = None

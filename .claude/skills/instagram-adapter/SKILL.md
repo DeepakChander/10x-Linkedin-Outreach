@@ -23,7 +23,7 @@ Automates Instagram actions using the ClaudeKit Universal Browser Extension with
 
 **Fast, local browser automation!** The ClaudeKit extension provides direct control over your browser via WebSocket.
 
-Benefits over Browser-Use MCP:
+Benefits of WebSocket integration:
 - ✅ **Faster**: Local execution, no cloud latency
 - ✅ **Free**: No usage costs
 - ✅ **Visible**: See actions in real-time
@@ -223,41 +223,41 @@ Response:
 
 **You should:**
 
-1. **Get profile:**
+1. **Check extension:**
+   ```bash
+   curl http://localhost:3000/api/extension/status
    ```
-   Call mcp__browser-use__list_browser_profiles
-   → Get Instagram profile_id
-   ```
+   → Verify extension is connected
 
 2. **Render template:**
    ```bash
    python .claude/scripts/template_loader.py render --path instagram/dms/brand_collaboration --var first_name "Influencer" --var company "My Brand" --var my_name "Your Name"
    ```
-   → Get rendered message
+   → Get rendered message: "Hi! Your brand aesthetic is amazing..."
 
-3. **Generate task:**
+3. **Send to extension:**
    ```bash
-   python .claude/scripts/instagram_adapter.py task --action dm --handle "@influencer" --name "Influencer" --message "Hi! Your brand aesthetic is amazing..." --user default
-   ```
-   → Get Browser-Use task description
-
-4. **Execute:**
-   ```
-   Call mcp__browser-use__browser_task with:
-   - task: "Send a direct message to Influencer (@influencer) on Instagram..."
-   - profile_id: "abc123"
-   - max_steps: 10
+   curl -X POST http://localhost:3000/api/instagram/action \
+     -H "Content-Type: application/json" \
+     -d '{
+       "type": "dm",
+       "username": "influencer",
+       "message": "Hi! Your brand aesthetic is amazing..."
+     }'
    ```
 
-5. **Monitor:**
-   ```
-   Call mcp__browser-use__monitor_task(task_id)
-   Report: "DM sent to @influencer successfully!"
+4. **Get result (immediate):**
+   ```json
+   {
+     "success": true,
+     "status": "sent",
+     "rateLimit": { "remaining": 45, "limit": 50 }
+   }
    ```
 
-6. **Record:**
-   ```bash
-   python .claude/scripts/rate_limiter.py --user default --platform instagram --action dm --record --success --target "@influencer"
+5. **Report to user:**
+   ```
+   ✅ DM sent to @influencer successfully! (45 DMs remaining today)
    ```
 
 ## Example: Warm-Up Engagement Sequence
@@ -285,10 +285,19 @@ Response:
    ```
 
 2. After approval, execute sequentially:
-   - Like post
-   - Wait for rate-limited delay (1.5-7 minutes)
-   - Post comment
-   - Report completion
+   ```bash
+   # 1. Like post
+   curl POST /api/instagram/action { "type": "like", "postUrl": "..." }
+
+   # 2. Wait (humanize)
+   sleep(random(90, 420))
+
+   # 3. Post comment
+   curl POST /api/instagram/action { "type": "comment", "postUrl": "...", "comment": "Amazing content!" }
+
+   # 4. Report
+   print("✅ Engaged with @creator")
+   ```
 
 ## Example: Bulk Influencer Outreach (Single Approval)
 
@@ -318,11 +327,32 @@ Response:
    ```
 
 2. After single approval, execute ALL autonomously:
-   - Render template for each influencer
-   - Execute via Browser-Use
-   - Wait for rate-limited delay (1.5-7 minutes)
-   - Report progress after each DM
-   - Final summary when complete
+   ```bash
+   for influencer in targets:
+     # 1. Render template
+     message = render_template(influencer)
+
+     # 2. Send to extension
+     result = curl POST /api/instagram/action {
+       "type": "dm",
+       "username": influencer.handle,
+       "message": message
+     }
+
+     # 3. Report progress
+     print(f"✅ {influencer.name}: {result.status}")
+
+     # 4. Smart delay (1.5-7 minutes between DMs)
+     sleep(random(90, 420))
+   ```
+
+3. Final summary:
+   ```
+   ✅ Bulk influencer outreach complete!
+   - 5/5 DMs sent successfully
+   - 45 DMs remaining today
+   - Activity recorded automatically
+   ```
 
 ## Rate Limits
 

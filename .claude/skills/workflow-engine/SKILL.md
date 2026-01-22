@@ -12,9 +12,6 @@ allowed-tools:
   - Grep
   - TodoWrite
   - AskUserQuestion
-  - mcp__browser-use__browser_task
-  - mcp__browser-use__list_browser_profiles
-  - mcp__browser-use__monitor_task
 ---
 
 # Workflow Engine Skill
@@ -499,11 +496,11 @@ Do you approve this workflow? (yes/no)
 
 ### Phase 4: Autonomous Execution
 
-After approval, use Browser-Use MCP to execute actions:
+After approval, use ClaudeKit Browser Extension to execute actions:
 
 1. Get next action from workflow
-2. Execute via `mcp__browser-use__browser_task`
-3. Monitor with `mcp__browser-use__monitor_task`
+2. Execute via HTTP API (curl to http://localhost:3000/api/[platform]/action)
+3. Get immediate result from API response
 4. Record result
 5. Wait for rate-limited delay
 6. Repeat until complete
@@ -569,13 +566,13 @@ python .claude/scripts/rate_limiter.py --user USER_ID --platform linkedin --acti
 ### Gmail Actions
 - `send` - Send email (via gmail_client.py)
 
-## Browser-Use MCP Execution
+## ClaudeKit Browser Extension Execution
 
-**Browser-Use MCP is cloud-hosted via Claude Code** - no local installation required!
+**ClaudeKit Browser Extension connects via WebSocket** - local, fast, and free!
 
 ### For LinkedIn/Twitter/Instagram Actions:
 
-Use the platform adapters to generate Browser-Use tasks:
+Use the platform adapters to generate action commands:
 
 ```bash
 # Generate LinkedIn task
@@ -588,22 +585,20 @@ python .claude/scripts/twitter_adapter.py task --action dm --handle "@username" 
 python .claude/scripts/instagram_adapter.py task --action dm --handle "@username" --name "John" --message "Hey John..." --user default
 ```
 
-### Execute with Browser-Use MCP:
+### Execute with ClaudeKit Browser Extension:
 
 ```
-1. Get browser profile:
-   Call mcp__browser-use__list_browser_profiles
-   → Select appropriate profile for the platform
+1. Check extension connection:
+   curl http://localhost:3000/api/extension/status
+   → Verify extension is connected
 
-2. Execute task:
-   Call mcp__browser-use__browser_task with:
-   - task: The task description from adapter
-   - profile_id: The browser profile UUID
-   - max_steps: Recommended max_steps from adapter
+2. Execute action:
+   curl -X POST http://localhost:3000/api/[platform]/action
+   with JSON payload containing action type and parameters
 
-3. Monitor progress:
-   Call mcp__browser-use__monitor_task(task_id)
-   Poll until completed or failed
+3. Get immediate result:
+   API returns success/failure immediately
+   No polling needed - synchronous execution
 ```
 
 ### For Gmail Actions:

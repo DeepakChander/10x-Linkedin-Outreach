@@ -1,6 +1,6 @@
 # Twitter Command
 
-Execute Twitter/X actions using Browser-Use automation.
+Execute Twitter/X actions using ClaudeKit Browser Extension via WebSocket.
 
 ## Usage
 

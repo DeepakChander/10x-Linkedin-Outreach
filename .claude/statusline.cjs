@@ -19,6 +19,9 @@ const os = require('os');
 const fs = require('fs');
 const path = require('path');
 
+// Use modularized context tracker with 3-layer self-healing detection
+const { trackContext } = require('./hooks/lib/context-tracker.cjs');
+
 
 /**
  * Safe command execution wrapper

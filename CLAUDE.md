@@ -47,6 +47,8 @@ cd canvas && npm install
 | `/start` | **Start the visual canvas app** |
 | `/workflow create` | **Claude Code creates workflows visually in the canvas!** |
 | `/workflow run` | Execute a saved workflow |
+| `/exa` | **Search the web with Exa AI semantic search** |
+| `/websets` | **Create and manage curated web collections** |
 | `/discover` | Find people using Exa AI |
 | `/outreach` | Email campaigns |
 | `/compose` | Individual emails |
@@ -57,53 +59,71 @@ cd canvas && npm install
 | `/canvas` | Visual workflow builder |
 | `/team` | Manage team credentials |
 
-## 10x-Team Visual Canvas
+## TLDraw Canvas
 
-The visual workflow canvas powered by TLDraw for designing outreach workflows.
+A standalone, portable implementation of the official TLDraw SDK.
 
-### Claude Code Creates Workflows Visually!
+### Two Canvas Options
 
-Say `/workflow create` and watch Claude Code build your workflow in real-time:
+| Canvas | Purpose | Location |
+|--------|---------|----------|
+| **tldraw-canvas** | Clean, standalone TLDraw (recommended) | `./tldraw-canvas/` |
+| **canvas** | Legacy API server (deprecated frontend) | `./canvas/` |
 
+### Recommended: tldraw-canvas
+
+The `tldraw-canvas` folder contains a **clean, portable** implementation using the **official TLDraw SDK** with zero custom modifications.
+
+**Quick Start:**
+```bash
+cd tldraw-canvas
+npm install
+npm run dev
 ```
-User: /workflow create for AI founders on LinkedIn and Twitter
 
-Claude Code:
-1. Asks about your target audience
-2. Builds the workflow structure
-3. Sends commands to canvas API
-4. Canvas shows nodes appearing one-by-one!
-5. Connections draw automatically
+Opens at **http://localhost:3000**
 
-Watch at http://localhost:3000 as:
-[Discovery] → [LinkedIn View] → [Like] → [Delay] → [Connect] → [Twitter Follow] → [Message]
-```
+### Features (Official TLDraw SDK)
 
-### Canvas Features
-- **Claude Code Integration**: Create workflows by talking to Claude!
-- **Drag-to-connect**: Drag from green ▶ (output) to blue ◀ (input)
-- **Auto-save**: Your work is automatically preserved
-- **Export**: PNG, SVG, or save as .10x file
-- **Simulate**: Watch your workflow execute step-by-step
-- **Preview**: Highlight execution path before running
-- **Templates**: Pre-built B2B, Brand, Influencer workflows
+- ✨ **Infinite Canvas** - Pan and zoom freely across unlimited space
+- 🎨 **Drawing Tools** - Pen, highlighter, eraser
+- 📐 **Shapes** - Rectangle, ellipse, arrow, line, text, and more
+- 🖼️ **Media** - Embed images and videos
+- 📋 **Copy/Paste** - Full clipboard support with fidelity
+- ↩️ **Undo/Redo** - Complete history tracking
+- 💾 **Export** - PNG, SVG, or JSON format
+- 🔄 **Auto-Save** - Automatic persistence to localStorage
+- 👥 **Multiplayer** - Real-time collaboration (optional)
 
-### How to Use the Canvas
+### Basic Usage
 
-1. **Add Nodes**: Click skill buttons in toolbar (Discovery, LinkedIn, etc.)
-2. **Connect Nodes**: Drag from green output ▶ to blue input ◀
-3. **Configure**: Click a node to set its options
-4. **Preview**: Click 👁️ to highlight the execution path
-5. **Simulate**: Click 🎬 to watch workflow run step-by-step
-6. **Run**: Click ▶ Run to save workflow JSON
-7. **Execute**: Say "/workflow run" in Claude Code
+1. **Draw & Write** - Use the toolbar to select tools
+2. **Add Shapes** - Click shape buttons (rectangle, ellipse, arrow, etc.)
+3. **Add Media** - Drag and drop images or videos
+4. **Pan & Zoom** - Mouse drag to pan, scroll wheel to zoom
+5. **Select & Transform** - Click to select, drag handles to resize
+6. **Copy/Paste** - Ctrl+C / Ctrl+V (Cmd+C / Cmd+V on Mac)
+7. **Undo/Redo** - Ctrl+Z / Ctrl+Shift+Z
+8. **Export** - Menu → Export as PNG, SVG, or JSON
 
-### Workflow JSON Output
+### Portable Design
 
-When you click Run, the workflow is saved to:
-- `workflow.json` - In project root (quick access)
-- `output/workflows/latest.json` - Latest workflow
-- `output/workflows/workflow-{timestamp}.json` - Timestamped backup
+The `tldraw-canvas` folder is designed to be **easily copied** to any other skill:
+
+1. Copy the entire `tldraw-canvas` folder
+2. Run `npm install` in the new location
+3. Update port in `vite.config.ts` if needed
+4. Run `npm run dev`
+
+That's it! No configuration needed.
+
+### TLDraw Resources
+
+- Official Docs: https://tldraw.dev
+- Quick Start: https://tldraw.dev/quick-start
+- API Reference: https://tldraw.dev/api
+- Examples: https://tldraw.dev/examples
+- GitHub: https://github.com/tldraw/tldraw
 
 ## Directory Structure
 
@@ -114,11 +134,24 @@ When you click Run, the workflow is saved to:
 │   ├── commands/             # Slash commands
 │   ├── scripts/              # Python automation scripts
 │   ├── templates/            # Message templates
-│   └── workflows/            # Workflow definitions
+│   ├── workflows/            # Workflow definitions
+│   ├── hooks/                # Claude Code hooks
+│   │   └── lib/              # Hook libraries (context-tracker, etc.)
+│   ├── statusline.cjs        # Custom statusline (Node.js)
+│   ├── statusline.ps1        # Custom statusline (PowerShell)
+│   └── statusline.sh         # Custom statusline (Shell)
 │
-├── canvas/                   # Visual Workflow Canvas
-│   ├── src/                  # React + TLDraw source
-│   └── dist/                 # Production build
+├── canvas/                   # Canvas API Server
+│   ├── server.js             # WebSocket/HTTP API server
+│   └── src/                  # Legacy custom canvas (deprecated)
+│
+├── tldraw-canvas/            # Standalone TLDraw (Official SDK)
+│   ├── src/                  # Clean TLDraw implementation
+│   │   ├── App.tsx           # Pure TLDraw component
+│   │   ├── main.tsx          # React entry
+│   │   └── index.css         # Styles
+│   ├── package.json          # TLDraw dependencies
+│   └── README.md             # Portable TLDraw docs
 │
 ├── output/                   # Runtime output
 │   ├── workflows/            # Saved workflows
@@ -132,8 +165,8 @@ When you click Run, the workflow is saved to:
 
 ## How It Works
 
-1. **Visual Canvas** (TLDraw) - Design workflows visually
-2. **Browser-Use MCP** - Handles social platform automation
+1. **Visual Canvas** (TLDraw) - Design workflows visually using the official TLDraw SDK
+2. **10x-Browser Extension** - Handles social platform automation via ClaudeKit Browser Extension
 3. **Gmail API** - Email sending with OAuth2
 4. **Intelligent Rate Limiting** - Prevents spam/detection
 5. **Single Approval** - Approve once, execute autonomously
@@ -172,8 +205,9 @@ SENDER_EMAIL=your@gmail.com
 SENDER_NAME=Your Name
 ```
 
-### Browser-Use (for social platforms)
-Browser-Use MCP is cloud-hosted via Claude Code - no local installation needed.
+### 10x-Browser Extension (for social platforms)
+The ClaudeKit Browser Extension handles automation for LinkedIn, Twitter, and Instagram.
+Located at: `C:\Users\Anit\Downloads\10x-Browser Extension`
 
 ## Pre-Built Workflow Templates
 
@@ -184,65 +218,16 @@ Browser-Use MCP is cloud-hosted via Claude Code - no local installation needed.
 | ⭐ Influencer Outreach | 21 days | Social + Pitch |
 | 🌐 Multi-Platform | 30 days | All channels |
 
-## Workflow Management API
 
-### List All Workflows
-```bash
-curl http://localhost:3000/api/workflows
-```
-Returns all workflows sorted by creation date with metadata.
+## Browser Extension Integration
 
-### Get Latest Workflow
-```bash
-curl http://localhost:3000/api/workflow/latest
-```
-Returns the most recently created workflow.
+The 10x-Outreach System integrates with the ClaudeKit Browser Extension for social platform automation:
 
-### Get Workflow by Name
-```bash
-curl http://localhost:3000/api/workflow/linkedin-twitter-5nodes-2026-01-22
-```
-Returns specific workflow with full metadata and execution history.
+- **LinkedIn Actions** - Connect, message, view profiles, like, comment
+- **Twitter Actions** - Follow, DM, like, reply, retweet
+- **Instagram Actions** - Follow, DM, like, comment, story replies
 
-### Update Workflow Status
-```bash
-curl -X POST http://localhost:3000/api/workflow/workflow-name/status \
-  -H "Content-Type: application/json" \
-  -d '{
-    "status": "completed",
-    "executed": true,
-    "executionResult": {
-      "message": "Successfully executed",
-      "stats": { "sent": 50, "failed": 0 }
-    }
-  }'
-```
-
-### Workflow Naming Format
-Workflows are automatically named with context:
-- Format: `{platforms}-{nodeCount}nodes-{timestamp}.json`
-- Example: `linkedin-twitter-instagram-8nodes-2026-01-22T14-30-00.json`
-
-This allows Claude Code to:
-1. Identify workflow complexity (node count)
-2. Understand platforms involved
-3. Sort by creation time
-4. Run most recent unexecuted workflow
-
-### Workflow Status Values
-- `pending` - Created but not executed
-- `running` - Currently executing
-- `completed` - Successfully finished
-- `failed` - Execution failed
-
-## MCP Tools Available
-
-- `mcp__browser-use__browser_task` - Execute browser actions
-- `mcp__browser-use__list_browser_profiles` - List authenticated profiles
-- `mcp__browser-use__monitor_task` - Monitor task progress
-- `mcp__browser-use__list_skills` - List available skills
-- `mcp__browser-use__execute_skill` - Execute pre-built skills
-- `mcp__browser-use__get_cookies` - Get authentication cookies
+Extension path: `C:\Users\Anit\Downloads\10x-Browser Extension`
 
 ## License
 

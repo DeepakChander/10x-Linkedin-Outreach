@@ -1,6 +1,6 @@
 # LinkedIn Command
 
-Execute LinkedIn actions using Browser-Use automation.
+Execute LinkedIn actions using ClaudeKit Browser Extension via WebSocket.
 
 ## Usage
 

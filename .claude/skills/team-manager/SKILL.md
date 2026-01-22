@@ -11,7 +11,6 @@ allowed-tools:
   - Glob
   - TodoWrite
   - AskUserQuestion
-  - mcp__browser-use__list_browser_profiles
 ---
 
 # Team Manager Skill
@@ -24,7 +23,7 @@ Use this skill when the user:
 - Wants to add or remove team members
 - Needs to configure platform credentials (LinkedIn, Twitter, Instagram, Gmail)
 - Asks about team status or who is set up
-- Wants to link Browser-Use profiles to team members
+- Wants to link browser extension credentials to team members
 - Needs to check authentication status
 
 ## When NOT to Use This Skill
@@ -38,7 +37,7 @@ Do NOT use this skill for:
 
 1. **Add Team Members** - Add new team members with name, email, timezone
 2. **Configure Platforms** - Enable/disable platforms per member
-3. **Link Browser Profiles** - Connect Browser-Use authenticated profiles
+3. **Link Browser Extension** - Connect browser extension credentials
 4. **View Status** - Show team overview and auth status
 5. **Manage Limits** - Set per-user rate limits
 
@@ -68,12 +67,12 @@ python .claude/scripts/team_manager.py status
 python .claude/scripts/team_manager.py configure --id MEMBER_ID --platform linkedin --enable --handle "@johndoe" --profile-url "linkedin.com/in/johndoe"
 ```
 
-### Link Browser-Use Profile
+### Link Browser Extension Credentials
 
-After listing browser profiles with `mcp__browser-use__list_browser_profiles`, link a profile:
+After verifying extension connection, link credentials:
 
 ```bash
-python .claude/scripts/team_manager.py configure --id MEMBER_ID --platform linkedin --browser-profile "BROWSER_PROFILE_UUID"
+python .claude/scripts/team_manager.py configure --id MEMBER_ID --platform linkedin --browser-profile "CREDENTIALS_ID"
 ```
 
 ### Set Rate Limits
@@ -88,17 +87,18 @@ python .claude/scripts/team_manager.py configure --id MEMBER_ID --platform linke
 python .claude/scripts/team_manager.py remove --id MEMBER_ID
 ```
 
-## Browser-Use Integration
+## Browser Extension Integration
 
 To authenticate a team member's platform account:
 
-1. **List Browser Profiles:**
-   Use `mcp__browser-use__list_browser_profiles` to see available authenticated profiles.
+1. **Check Extension Status:**
+   Use `curl http://localhost:3000/api/extension/status` to verify extension is connected.
 
-2. **Match Profile to Member:**
-   Identify which browser profile belongs to which team member based on profile name.
+2. **Verify Authentication:**
+   Team member should be logged into platforms (LinkedIn, Twitter, Instagram) in their browser.
+   The extension uses the authenticated browser session automatically.
 
-3. **Link Profile:**
+3. **Link Credentials:**
    ```bash
    python .claude/scripts/team_manager.py configure --id MEMBER_ID --platform linkedin --browser-profile "UUID"
    ```

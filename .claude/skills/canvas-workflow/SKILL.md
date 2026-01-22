@@ -8,9 +8,6 @@ allowed-tools:
   - Read
   - Write
   - WebFetch
-  - mcp__browser-use__browser_task
-  - mcp__browser-use__list_browser_profiles
-  - mcp__browser-use__monitor_task
 ---
 
 # 10x-Team Visual Workflow Canvas
@@ -166,7 +163,7 @@ The canvas works with Claude Code as the orchestration brain:
 ```
 Canvas (Design) → Export JSON → Claude Code (Orchestrate) → Skills (Execute)
                                       ↓
-                              Browser-Use MCP
+                              ClaudeKit Browser Extension
                               Gmail API
                               Exa AI
 ```

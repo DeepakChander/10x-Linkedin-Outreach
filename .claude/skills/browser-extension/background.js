@@ -7,7 +7,7 @@
 
 // Configuration
 const CONFIG = {
-  WEBSOCKET_URL: 'ws://localhost:3000/ws',
+  WEBSOCKET_URL: 'ws://localhost:3001/ws',
   HTTP_API_URL: 'http://localhost:3000/api',
   RECONNECT_DELAY: 5000,
   MAX_RECONNECT_ATTEMPTS: 10,

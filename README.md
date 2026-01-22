@@ -18,8 +18,8 @@
 
 **10x Outreach Skill** is a Claude Code skill that gives you:
 
-1. **Visual Workflow Canvas** - A drag-and-drop infinite canvas (powered by TLDraw) to design multi-platform outreach workflows
-2. **13 Automation Skills** - LinkedIn, Twitter, Instagram, Gmail automation with intelligent rate limiting
+1. **TLDraw Canvas** - Official TLDraw SDK providing an infinite canvas for design and collaboration
+2. **13 Automation Skills** - LinkedIn, Twitter, Instagram, Gmail automation via ClaudeKit Browser Extension
 3. **85+ Message Templates** - Professional, customizable templates for all platforms
 4. **Team Management** - Multiple team members with their own credentials
 
@@ -123,74 +123,40 @@ Claude Code reads the workflow JSON and executes each step with intelligent dela
 
 ---
 
-## 🎨 Visual Workflow Canvas
+## 🎨 TLDraw Canvas
 
-The canvas is an infinite workspace powered by **TLDraw** where you design outreach sequences visually.
+An infinite canvas powered by the official **TLDraw SDK** for visual design and collaboration.
 
-### Canvas Features
+### Canvas Features (Official TLDraw SDK)
 
 | Feature | Description |
 |---------|-------------|
-| **Claude Code Integration** | Claude Code can create workflows visually in real-time! |
-| **Drag-to-Connect** | Drag from green ▶ to blue ◀ to connect nodes |
-| **Auto-Save** | Your work is automatically saved to localStorage |
-| **Export PNG/SVG** | Export your workflow as an image |
-| **Save as .10x** | Save/load workflows as portable files |
-| **Preview Mode** | Highlight the execution path before running |
-| **Simulation** | Watch your workflow execute step-by-step |
-| **Workflow Templates** | Pre-built B2B, Brand, Influencer workflows |
+| **Infinite Canvas** | Pan and zoom freely across unlimited space |
+| **Drawing Tools** | Draw, write, add shapes, images, and videos |
+| **Selection & Transform** | Click to select, drag to multi-select, transform shapes |
+| **Copy/Paste** | Standard clipboard operations with full fidelity |
+| **Undo/Redo** | Complete history tracking of all changes |
+| **Export** | Export as PNG, SVG, or JSON snapshot |
+| **Auto-Save** | Automatic persistence to localStorage |
+| **Programmatic Control** | Full API access via Editor instance |
 
-### Claude Code Creates Workflows Visually
+### Basic TLDraw Usage
 
-When you say `/workflow create`, Claude Code will:
-1. Ask about your target audience and platforms
-2. Build the workflow JSON
-3. Send commands to the canvas API
-4. **Watch nodes appear one-by-one on the canvas!**
-5. Connections draw automatically between nodes
+The canvas runs at **http://localhost:3000** with the standard TLDraw interface:
 
-```
-User: /workflow create for AI founders on LinkedIn
+1. **Draw & Write** - Use toolbar to select drawing tools
+2. **Add Shapes** - Rectangle, ellipse, arrow, line, text, etc.
+3. **Add Media** - Embed images and videos
+4. **Pan & Zoom** - Mouse drag to pan, scroll to zoom
+5. **Selection** - Click to select, drag to multi-select
+6. **Copy/Paste** - Standard keyboard shortcuts work
+7. **Undo/Redo** - Full history support
 
-Claude Code builds visually:
-[Discovery] → [View Profile] → [Like Post] → [Delay] → [Connect] → [Message]
-```
+### Export Options
 
-### Node Types
-
-| Node | Color | Purpose |
-|------|-------|---------|
-| **Discovery** | Purple | Find people with Exa AI |
-| **LinkedIn** | Blue | Connect, message, engage |
-| **Twitter** | Sky Blue | Follow, DM, reply, retweet |
-| **Instagram** | Pink | Follow, DM, comment, stories |
-| **Email** | Green | Send emails via Gmail |
-| **Delay** | Gray | Wait between actions |
-| **Condition** | Yellow | Branch based on response |
-
-### How Connections Work
-
-```
-[Discovery] ──▶ [LinkedIn Connect] ──▶ [Delay 24h] ──▶ [LinkedIn Message]
-                                                              │
-                                                              ▼
-                                              [Email Follow-up] ◀── [Condition: No Response]
-```
-
-When you click **Run**, the canvas generates a `workflow.json` file:
-
-```json
-{
-  "name": "My Outreach Workflow",
-  "steps": [
-    { "step": 1, "skill": "discovery", "config": { "query": "AI founders" } },
-    { "step": 2, "skill": "linkedin", "action": "connect" },
-    { "step": 3, "skill": "delay", "hours": 24 },
-    { "step": 4, "skill": "linkedin", "action": "message" }
-  ],
-  "connections": [...]
-}
-```
+- **PNG** - Raster image export
+- **SVG** - Vector export for scalability
+- **JSON** - Full snapshot for persistence and sharing
 
 ---
 
@@ -203,6 +169,8 @@ When you click **Run**, the canvas generates a `workflow.json` file:
 | `/start` | **Start the visual canvas** on localhost:3000 |
 | `/canvas` | Open the workflow canvas |
 | `/workflow` | Create and run multi-platform workflows |
+| `/exa` | **Search the web with Exa AI semantic search** |
+| `/websets` | **Create and manage curated web collections** |
 
 ### Platform Commands
 
@@ -222,11 +190,11 @@ When you click **Run**, the canvas generates a `workflow.json` file:
 | `/reply` | Reply to emails |
 | `/summarize` | Get email digests |
 
-### Management Commands
+### Discovery & Management Commands
 
 | Command | Description |
 |---------|-------------|
-| `/discover` | Find people with Exa AI |
+| `/discover` | Find people using Exa AI |
 | `/team` | Manage team members and credentials |
 
 ---
@@ -299,9 +267,10 @@ Located in `.claude/workflows/examples/`:
 
 ### Requirements
 
-- **Node.js 18+** (for the visual canvas)
-- **Claude Code** (with Browser-Use MCP access)
+- **Node.js 18+** (for the TLDraw canvas)
+- **Claude Code**
 - **Python 3.9+** (optional, for advanced scripts)
+- **10x-Browser Extension** (ClaudeKit Browser Extension at `C:\Users\Anit\Downloads\10x-Browser Extension`)
 
 ### Environment Variables
 
@@ -365,8 +334,8 @@ INSTAGRAM_FOLLOWS_PER_DAY=30
 │         └────────────────────┼────────────────────┘                 │
 │                              ▼                                       │
 │  ┌────────────────────────────────────────────────────────────────┐ │
-│  │           BROWSER-USE MCP (Cloud-Hosted via Claude)            │ │
-│  │              No local browser installation needed               │ │
+│  │              10x-BROWSER EXTENSION (ClaudeKit)                 │ │
+│  │            C:\Users\Anit\Downloads\10x-Browser Extension       │ │
 │  └────────────────────────────────────────────────────────────────┘ │
 │                                                                      │
 │  ┌───────────────┐   ┌───────────────┐   ┌───────────────────────┐ │
@@ -383,18 +352,12 @@ INSTAGRAM_FOLLOWS_PER_DAY=30
 
 ```
 10x-outreach-skill/
-├── canvas/                    # Visual Workflow Canvas
+├── canvas/                    # TLDraw Canvas (Official SDK)
 │   ├── src/
-│   │   ├── App.tsx            # Main app with auto-save
-│   │   ├── nodes/             # Custom TLDraw shapes
-│   │   │   └── SkillNodeShapeUtil.tsx
-│   │   ├── connection/        # Connection lines
-│   │   │   └── ConnectionShapeUtil.tsx
-│   │   └── components/
-│   │       ├── WorkflowToolbar.tsx
-│   │       ├── ExportControls.tsx
-│   │       └── ConnectionDragger.tsx
-│   └── package.json
+│   │   ├── App.tsx            # Clean TLDraw implementation
+│   │   ├── index.css          # Styles
+│   │   └── main.tsx           # Entry point
+│   └── package.json           # Dependencies (tldraw, react)
 │
 ├── .claude/                   # Claude Code Skill
 │   ├── skills/                # 13 skill definitions
@@ -447,77 +410,29 @@ INSTAGRAM_FOLLOWS_PER_DAY=30
 
 ---
 
-## 🔌 Canvas API (For Developers)
 
-The canvas exposes a REST API that Claude Code uses to create workflows visually.
+## 🔧 10x-Browser Extension Integration
 
-### API Endpoints
+The ClaudeKit Browser Extension handles social platform automation for LinkedIn, Twitter, and Instagram.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/canvas/status` | GET | Check if canvas is running |
-| `/api/canvas/workflow` | POST | Create a complete workflow with nodes and connections |
-| `/api/canvas/command` | POST | Send a single command (add-node, add-connection, clear) |
-| `/api/canvas/commands` | GET | Poll for pending commands |
+### Extension Location
 
-### Example: Create Workflow via API
+`C:\Users\Anit\Downloads\10x-Browser Extension`
 
-```bash
-curl -X POST http://localhost:3000/api/canvas/workflow \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "My Workflow",
-    "nodes": [
-      {"id": "n1", "skill": "discovery", "label": "Find People"},
-      {"id": "n2", "skill": "linkedin", "label": "Connect"}
-    ],
-    "connections": [
-      {"from": "n1", "to": "n2"}
-    ]
-  }'
-```
+### Supported Actions
 
-### Python Client
+| Platform | Actions |
+|----------|---------|
+| **LinkedIn** | Connect, message, view profiles, like posts, comment |
+| **Twitter** | Follow, DM, like tweets, reply, retweet |
+| **Instagram** | Follow, DM, like posts, comment, story replies |
 
-```python
-from canvas_client import create_workflow, add_node, check_canvas_status
+### How It Works
 
-# Check if canvas is running
-status = check_canvas_status()
-
-# Create a B2B workflow
-create_b2b_workflow()
-
-# Or create custom
-create_workflow({
-    "nodes": [...],
-    "connections": [...]
-})
-```
-
----
-
-## 🔧 Browser-Use MCP
-
-Browser-Use MCP is **cloud-hosted via Claude Code** - no local installation needed.
-
-### Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `mcp__browser-use__browser_task` | Execute browser automation |
-| `mcp__browser-use__list_browser_profiles` | List authenticated profiles |
-| `mcp__browser-use__monitor_task` | Monitor task progress |
-| `mcp__browser-use__list_skills` | List available skills |
-| `mcp__browser-use__execute_skill` | Execute pre-built skills |
-| `mcp__browser-use__get_cookies` | Get authentication cookies |
-
-### Authentication Flow
-
-1. Run any platform command (e.g., `/linkedin connect`)
-2. Browser opens for you to log in manually
-3. Session is saved in cloud profile
-4. Future actions use saved session
+1. Install the ClaudeKit Browser Extension in your browser
+2. The extension receives commands from the 10x-Outreach System
+3. Extension performs actions on LinkedIn, Twitter, Instagram
+4. Results are sent back to the system for tracking
 
 ---
 
@@ -529,11 +444,11 @@ Browser-Use MCP is **cloud-hosted via Claude Code** - no local installation need
 cd canvas && npm install && npm run dev -- --port 3000
 ```
 
-### Browser not authenticating?
+### Browser Extension not working?
 
-1. Run `mcp__browser-use__list_browser_profiles`
-2. If no profiles, run a simple action to trigger login
-3. Log in manually when browser opens
+1. Verify the extension is installed in your browser
+2. Check that the extension path is correct: `C:\Users\Anit\Downloads\10x-Browser Extension`
+3. Ensure you're logged into LinkedIn/Twitter/Instagram in your browser
 
 ### Gmail issues?
 

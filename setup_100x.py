@@ -8,14 +8,9 @@ This script sets up the 100X Outreach System:
 3. Environment variables
 4. Gmail OAuth2 configuration
 
-NOTE: Browser-Use MCP is used directly from Claude Code (cloud-hosted).
-      No local MCP installation required - Claude Code has built-in access to:
-      - mcp__browser-use__browser_task
-      - mcp__browser-use__list_browser_profiles
-      - mcp__browser-use__monitor_task
-      - mcp__browser-use__list_skills
-      - mcp__browser-use__execute_skill
-      - mcp__browser-use__get_cookies
+NOTE: ClaudeKit Browser Extension is used for platform automation.
+      The extension connects via WebSocket at ws://localhost:3000/ws
+      Canvas server provides HTTP API at http://localhost:3000/api
 
 Run: python setup_100x.py
 """
@@ -184,50 +179,21 @@ def setup_python_environment(base_dir: Path) -> bool:
     return True
 
 # =============================================================================
-# LOCAL MCP INSTALLATION - COMMENTED OUT
-# Browser-Use MCP is now accessed directly via Claude Code (cloud-hosted)
+# CLAUDEKIT BROWSER EXTENSION - NO INSTALLATION NEEDED
+# Extension connects via WebSocket to canvas server
 # =============================================================================
-# def setup_mcp_servers(base_dir: Path) -> Dict[str, bool]:
-#     """Install MCP servers locally"""
-#     results = {}
-#
-#     # Create MCP servers directory
-#     mcp_dir = base_dir / "mcp_servers"
-#     mcp_dir.mkdir(exist_ok=True)
-#
-#     # Install Browser-Use MCP
-#     print_info("Installing Browser-Use MCP server...")
-#     success, _, _ = run_command("npm install -g @anthropic/browser-use-mcp", capture=True)
-#     if not success:
-#         # Try local install
-#         success, _, _ = run_command(f'cd "{mcp_dir}" && npm init -y && npm install @anthropic/browser-use-mcp', capture=True)
-#     results['browser-use'] = success
-#
-#     # Install Exa MCP
-#     print_info("Installing Exa AI MCP server...")
-#     success, _, _ = run_command("npm install -g exa-mcp-server", capture=True)
-#     if not success:
-#         success, _, _ = run_command(f'cd "{mcp_dir}" && npm install exa-mcp-server', capture=True)
-#     results['exa'] = success
-#
-#     return results
 
-def setup_mcp_info():
-    """Display info about Browser-Use MCP (no local installation needed)"""
-    print_info("Browser-Use MCP: Available directly in Claude Code (cloud-hosted)")
-    print_info("No local installation required!")
-    print_success("Browser-Use MCP tools available via Claude Code")
+def setup_extension_info():
+    """Display info about ClaudeKit Browser Extension"""
+    print_info("ClaudeKit Browser Extension: Local browser automation via WebSocket")
+    print_info("Extension connects to canvas server at ws://localhost:3000/ws")
+    print_success("Browser automation available via HTTP API at http://localhost:3000/api")
 
 def generate_mcp_config(base_dir: Path, exa_api_key: str = "") -> Dict:
     """Generate MCP configuration for Claude Code"""
 
     config = {
         "mcpServers": {
-            "browser-use": {
-                "command": "npx",
-                "args": ["-y", "@anthropic/browser-use-mcp"],
-                "env": {}
-            },
             "exa": {
                 "command": "npx",
                 "args": [
@@ -507,10 +473,10 @@ def interactive_setup():
         return False
     print_success("Python environment ready")
 
-    # Step 4: Browser-Use MCP info (no local installation needed)
-    print_step(4, total_steps, "Configuring Browser-Use MCP access...")
-    setup_mcp_info()
-    print_success("Browser-Use MCP: Ready (cloud-hosted via Claude Code)")
+    # Step 4: ClaudeKit Browser Extension info
+    print_step(4, total_steps, "Configuring ClaudeKit Browser Extension...")
+    setup_extension_info()
+    print_success("ClaudeKit Browser Extension: Ready (via WebSocket)")
 
     # Step 5: Get API keys
     print_step(5, total_steps, "Configuring API keys...")
@@ -539,27 +505,32 @@ def interactive_setup():
     print(f"""
 {Colors.GREEN}Your 100X Outreach System is ready!{Colors.END}
 
-{Colors.BOLD}Browser-Use MCP:{Colors.END}
-   Claude Code has built-in access to Browser-Use MCP (cloud-hosted)
-   No local installation required!
+{Colors.BOLD}ClaudeKit Browser Extension:{Colors.END}
+   Local browser automation via WebSocket
+   Canvas server: http://localhost:3000
+   WebSocket: ws://localhost:3000/ws
 
 {Colors.BOLD}Next Steps:{Colors.END}
 
-1. {Colors.CYAN}Add a team member:{Colors.END}
+1. {Colors.CYAN}Start the canvas server:{Colors.END}
+   /start (or cd canvas && npm run dev)
+
+2. {Colors.CYAN}Add a team member:{Colors.END}
    /team add
 
-2. {Colors.CYAN}Set up browser profiles:{Colors.END}
-   - Use: mcp__browser-use__list_browser_profiles
-   - Authenticate your LinkedIn/Twitter/Instagram in the browser
-   - Browser-Use MCP handles all platform automation
+3. {Colors.CYAN}Load the browser extension:{Colors.END}
+   - Open Chrome extensions (chrome://extensions/)
+   - Enable Developer mode
+   - Load unpacked: .claude/skills/browser-extension
+   - Extension should connect to WebSocket automatically
 
-3. {Colors.CYAN}Discover people:{Colors.END}
+4. {Colors.CYAN}Discover people:{Colors.END}
    /discover AI startup founders in San Francisco
 
-4. {Colors.CYAN}Create a workflow:{Colors.END}
+5. {Colors.CYAN}Create a workflow:{Colors.END}
    /workflow create
 
-5. {Colors.CYAN}Use platform commands:{Colors.END}
+6. {Colors.CYAN}Use platform commands:{Colors.END}
    /linkedin connect https://linkedin.com/in/username
    /twitter dm @username "Hello!"
    /instagram follow @username
@@ -587,7 +558,7 @@ def interactive_setup():
    2. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to .env
    3. Run /outreach to start email campaigns
 
-{Colors.YELLOW}Browser-Use MCP is cloud-hosted - no additional setup needed!{Colors.END}
+{Colors.YELLOW}ClaudeKit Browser Extension connects automatically when canvas server is running!{Colors.END}
 """)
 
     return True
@@ -620,10 +591,8 @@ def main():
         setup_directories(base_dir)
         setup_python_environment(base_dir)
 
-        # Browser-Use MCP is cloud-hosted - no local installation needed
-        # if not args.skip_mcp:
-        #     setup_mcp_servers(base_dir)
-        setup_mcp_info()
+        # ClaudeKit Browser Extension - no installation needed
+        setup_extension_info()
 
         config = {'exa_api_key': args.exa_key or ''}
         mcp_config = generate_mcp_config(base_dir, config['exa_api_key'])
@@ -632,7 +601,7 @@ def main():
         create_quick_start_script(base_dir)
 
         print_success("Setup complete!")
-        print_info("Browser-Use MCP is cloud-hosted via Claude Code - ready to use!")
+        print_info("ClaudeKit Browser Extension ready - start canvas server with /start")
     else:
         # Interactive setup
         try:
