@@ -1,0 +1,23 @@
+{
+  "name": "10x-outreach-skill",
+  "version": "1.0.0",
+  "description": "Visual workflow canvas for 10x-Team outreach automation",
+  "type": "module",
+  "main": "setup.js",
+  "scripts": {
+    "setup": "node setup.js",
+    "start": "cd canvas && npm run dev -- --port 3000",
+    "server": "cd canvas && npm run server"
+  },
+  "keywords": [
+    "outreach",
+    "automation",
+    "claude-code",
+    "workflow"
+  ],
+  "author": "10x-Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

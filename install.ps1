@@ -93,11 +93,12 @@ function Install-Dependencies {
         # Install Python dependencies
         if (Test-Path "requirements.txt") {
             Write-Color "Installing Python dependencies in virtual environment..." Blue
-            & ".venv\Scripts\pip.exe" install -r requirements.txt --quiet
+            & ".venv\Scripts\pip.exe" install -r requirements.txt --quiet --upgrade pip setuptools wheel
             Write-Color "✓ Python dependencies installed" Green
         }
     } else {
         Write-Color "⚠ Python not found - skipping Python dependencies" Yellow
+        Write-Color "  Install Python from: https://www.python.org/downloads/" Yellow
     }
 
     # Install canvas dependencies
@@ -105,7 +106,11 @@ function Install-Dependencies {
         Write-Color "Installing canvas dependencies..." Blue
         Set-Location canvas
         npm install --silent 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Color "⚠ Some npm packages may have warnings (this is usually okay)" Yellow
+        }
         Set-Location ..
+        Write-Color "✓ Canvas dependencies installed" Green
     }
 
     Write-Color "✓ All dependencies installed" Green
@@ -149,11 +154,37 @@ function Setup-ClaudeIntegration {
 function Setup-Environment {
     Write-Color "Setting up environment..." Cyan
 
-    if (-not (Test-Path ".env") -and (Test-Path "$INSTALL_DIR\.env.example")) {
-        Copy-Item "$INSTALL_DIR\.env.example" ".env"
-        Write-Color "Created .env file from template" Yellow
-        Write-Color "Please edit .env with your API keys" Yellow
+    Set-Location $INSTALL_DIR
+
+    # Check if .env already exists
+    if (Test-Path ".env") {
+        Write-Host ""
+        Write-Color "Existing .env file found." Yellow
+        $response = Read-Host "Run interactive setup wizard to reconfigure? (y/n)"
+
+        if ($response -eq 'y' -or $response -eq 'Y') {
+            node setup.js
+        } else {
+            Write-Color "Keeping existing .env configuration" Green
+        }
+    } else {
+        Write-Host ""
+        Write-Color "No .env file found. Running interactive setup wizard..." Cyan
+        Write-Host ""
+
+        # Run the interactive setup wizard
+        node setup.js
+
+        if (-not (Test-Path ".env")) {
+            Write-Color "⚠ Setup was cancelled or failed. Creating default .env..." Yellow
+            if (Test-Path ".env.example") {
+                Copy-Item ".env.example" ".env"
+                Write-Color "Created .env from template - please edit with your API keys" Yellow
+            }
+        }
     }
+
+    Write-Color "✓ Environment configuration ready" Green
 }
 
 # Print success
@@ -165,10 +196,24 @@ function Print-Success {
     Write-Host ""
     Write-Host "Installation directory: $INSTALL_DIR"
     Write-Host ""
-    Write-Color "Quick Start:" Magenta
-    Write-Host "  1. Open Claude Code in your project directory"
-    Write-Host "  2. Say: " -NoNewline; Write-Color '"start my app"' Yellow -NoNewline; Write-Host " or " -NoNewline; Write-Color '"/start"' Yellow
-    Write-Host "  3. Open " -NoNewline; Write-Color "http://localhost:3000" Cyan -NoNewline; Write-Host " in your browser"
+    Write-Color "Next Steps:" Magenta
+    Write-Host ""
+    Write-Host "  1. " -NoNewline; Write-Color "Load the Browser Extension:" Cyan
+    Write-Host "     • Open Chrome/Edge"
+    Write-Host "     • Go to chrome://extensions/"
+    Write-Host "     • Enable 'Developer mode'"
+    Write-Host "     • Click 'Load unpacked'"
+    Write-Host "     • Select: .claude/skills/browser-extension/"
+    Write-Host ""
+    Write-Host "  2. " -NoNewline; Write-Color "Start the Canvas Server:" Cyan
+    Write-Host "     cd canvas"
+    Write-Host "     npm run dev -- --port 3000"
+    Write-Host ""
+    Write-Host "  3. " -NoNewline; Write-Color "Open the Visual Canvas:" Cyan
+    Write-Host "     " -NoNewline; Write-Color "http://localhost:3000" Blue
+    Write-Host ""
+    Write-Host "  4. " -NoNewline; Write-Color "Use Claude Code:" Cyan
+    Write-Host "     Say: " -NoNewline; Write-Color '"start my app"' Yellow -NoNewline; Write-Host " or " -NoNewline; Write-Color '"/start"' Yellow
     Write-Host ""
     Write-Color "Available Commands:" Magenta
     Write-Host "  /start      - Start the visual canvas"
@@ -176,10 +221,13 @@ function Print-Success {
     Write-Host "  /outreach   - Email campaigns"
     Write-Host "  /linkedin   - LinkedIn automation"
     Write-Host "  /twitter    - Twitter automation"
+    Write-Host "  /instagram  - Instagram automation"
     Write-Host "  /workflow   - Multi-platform sequences"
     Write-Host ""
-    Write-Color "Manual Start:" Magenta
-    Write-Host "  cd canvas; npm run dev -- --port 3000"
+    Write-Color "Configuration:" Magenta
+    Write-Host "  • Environment: .env file configured"
+    Write-Host "  • Workspace: Check your configured workspace path"
+    Write-Host "  • To reconfigure: " -NoNewline; Write-Color "node setup.js" Yellow
     Write-Host ""
 }
 

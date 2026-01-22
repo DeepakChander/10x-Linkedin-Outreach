@@ -37,11 +37,50 @@ curl -fsSL https://raw.githubusercontent.com/Anit-1to10x/10x-outreach-skill/main
 irm https://raw.githubusercontent.com/Anit-1to10x/10x-outreach-skill/main/install.ps1 | iex
 ```
 
+**What the installer does:**
+- ✅ Checks for Node.js & Python
+- ✅ Installs all dependencies (npm & pip)
+- ✅ Runs interactive setup wizard for API keys
+- ✅ Creates workspace directories
+- ✅ Sets up browser extension
+
 ### Manual Installation
 ```bash
+# Clone the repository
 git clone https://github.com/Anit-1to10x/10x-outreach-skill.git
 cd 10x-outreach-skill
-cd canvas && npm install
+
+# Install dependencies
+cd canvas && npm install && cd ..
+pip install -r requirements.txt
+
+# Run interactive setup wizard
+node setup.js
+```
+
+### Requirements
+
+- **Node.js 18+** - [Download](https://nodejs.org/)
+- **Python 3.8+** - [Download](https://www.python.org/downloads/)
+- **Git** - [Download](https://git-scm.com/downloads)
+
+### Configuration
+
+After installation, you'll be guided through an **interactive setup wizard** that collects:
+
+**Required:**
+- 🔑 Exa AI API Key (prospect enrichment)
+- 🔑 Google OAuth credentials (Gmail integration)
+- 📧 Sender email address
+
+**Optional:**
+- 🤖 Gemini AI API Key (multimodal features)
+- 🎨 Canva credentials (design automation)
+- 🧠 Anthropic API Key (advanced AI features)
+
+**To reconfigure later:**
+```bash
+node setup.js
 ```
 
 ---
