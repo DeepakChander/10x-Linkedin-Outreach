@@ -237,3 +237,56 @@ All errors logged to `output/logs/` for review after completion.
 3. **Daily limits** - Respects DAILY_EMAIL_LIMIT
 4. **Full logging** - Every email logged for audit
 5. **Dry run option** - Test first with `--dry-run`
+
+## MCP Integration Guidelines
+
+### Primary MCP: Gmail API
+This skill primarily uses the Gmail API for email operations.
+
+### When to Use MCPs
+
+| Operation | MCP | Tool |
+|-----------|-----|------|
+| Send emails | Gmail | `gmail_send` |
+| Read recipients from sheets | Google Sheets | `sheets_read` |
+| Track opens/clicks | Analytics | Internal tracking |
+
+### MCP Selection Flow
+
+```
+User Request → Context Detector → Keyword Router → Pre-Tool Router → MCP Selection
+     ↓                                                                    ↓
+   Outreach                                                           Gmail API
+```
+
+### Integration with Other Skills
+
+| Scenario | Route To | Reason |
+|----------|----------|--------|
+| Single email | `email-composer` | Better for individual emails |
+| Find recipients first | `discovery-engine` | Uses Exa AI for discovery |
+| Multi-platform campaign | `workflow-engine` | Orchestrates multiple platforms |
+| Check replies | `inbox-reader` | Inbox operations |
+
+### MCP Best Practices
+
+1. **Always verify Gmail authentication** before starting campaigns
+2. **Use batch operations** when sending to multiple recipients
+3. **Log all operations** for analytics tracking
+4. **Respect rate limits** from pre-tool-router
+5. **Handle MCP failures gracefully** with retries
+
+### Environment Variables for MCP
+
+```env
+# Gmail MCP Configuration
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+GMAIL_ACCESS_TOKEN=your_access_token
+GMAIL_REFRESH_TOKEN=your_refresh_token
+
+# Campaign Settings
+EMAIL_DELAY_SECONDS=60
+MAX_EMAILS_PER_BATCH=50
+DAILY_EMAIL_LIMIT=100
+```

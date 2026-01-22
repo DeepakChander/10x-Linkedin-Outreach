@@ -1,8 +1,11 @@
 {
   "name": "10x-outreach-skill",
-  "version": "2.0.0",
-  "description": "Complete multi-platform outreach automation for Claude Code. Supports Gmail, LinkedIn, Twitter, Instagram with team management, intelligent discovery via Exa AI, and workflow orchestration with human-like rate limiting.",
-  "author": "Anit",
+  "version": "3.0.0",
+  "description": "Complete multi-platform outreach automation for Claude Code. Supports Gmail, LinkedIn, Twitter, Instagram with team management, intelligent discovery via Exa AI, workflow orchestration with human-like rate limiting, analytics, content marketing, and SEO optimization.",
+  "author": "10x.in",
+  "homepage": "https://github.com/Anit-1to10x/10x-outreach-skill",
+  "repository": "https://github.com/Anit-1to10x/10x-outreach-skill",
+  "license": "MIT",
   "keywords": [
     "email",
     "gmail",
@@ -18,7 +21,12 @@
     "automation",
     "campaigns",
     "rate-limiting",
-    "claudekit-extension"
+    "claudekit-extension",
+    "analytics",
+    "content-marketing",
+    "seo",
+    "canvas",
+    "mcp"
   ],
   "skills": [
     ".claude/skills/outreach-manager",
@@ -36,6 +44,9 @@
     ".claude/skills/gmail-adapter",
     ".claude/skills/canvas-workflow",
     ".claude/skills/linkedin-lookback",
+    ".claude/skills/analytics",
+    ".claude/skills/content-marketing",
+    ".claude/skills/seo-optimization",
     ".claude/skills/start-app.md"
   ],
   "agents": [
@@ -56,10 +67,40 @@
     ".claude/commands/instagram.md",
     ".claude/commands/canvas.md",
     ".claude/commands/start.md",
-    ".claude/commands/lookback.md"
+    ".claude/commands/lookback.md",
+    ".claude/commands/exa.md",
+    ".claude/commands/websets.md"
+  ],
+  "hooks": [
+    {
+      "name": "keyword-router",
+      "path": ".claude/hooks/keyword-router.cjs",
+      "event": "pre_request",
+      "description": "Routes requests based on detected keywords"
+    },
+    {
+      "name": "pre-tool-router",
+      "path": ".claude/hooks/pre-tool-router.cjs",
+      "event": "pre_tool",
+      "description": "Selects optimal MCP and applies rate limiting"
+    },
+    {
+      "name": "context-detector",
+      "path": ".claude/hooks/context-detector.cjs",
+      "event": "pre_request",
+      "description": "Analyzes user intent and extracts context"
+    },
+    {
+      "name": "context-tracker",
+      "path": ".claude/hooks/lib/context-tracker.cjs",
+      "event": "status_update",
+      "description": "Tracks context window usage"
+    }
   ],
   "requires": {
+    "claude-code": ">=1.0.0",
     "python": ">=3.9",
+    "node": ">=18.0.0",
     "packages": [
       "google-api-python-client",
       "google-auth-httplib2",
@@ -72,20 +113,38 @@
       "pandas",
       "email-validator",
       "html2text",
-      "pyyaml"
+      "pyyaml",
+      "requests"
     ]
   },
   "mcp_integrations": {
     "exa": {
-      "description": "Exa AI for intelligent people discovery",
+      "description": "Exa AI for intelligent people discovery and content research",
       "tools": [
         "linkedin_search_exa",
         "company_research_exa",
         "web_search_exa",
+        "exa_search",
         "deep_researcher_start",
-        "deep_researcher_check"
+        "deep_researcher_check",
+        "create_webset",
+        "get_webset",
+        "list_websets"
       ],
-      "required_env": ["EXA_API_KEY"]
+      "required_env": ["EXA_API_KEY"],
+      "skills": ["discovery-engine", "content-marketing", "seo-optimization"]
+    },
+    "browser-use": {
+      "description": "Browser-Use MCP for social platform automation",
+      "tools": [
+        "browser_task",
+        "list_browser_profiles",
+        "monitor_task",
+        "list_skills",
+        "get_cookies",
+        "execute_skill"
+      ],
+      "skills": ["linkedin-adapter", "twitter-adapter", "instagram-adapter"]
     },
     "claudekit-extension": {
       "description": "ClaudeKit Browser Extension for LinkedIn, Twitter, Instagram automation",
@@ -97,7 +156,8 @@
         "instagram_action",
         "extension_status",
         "rate_limits"
-      ]
+      ],
+      "skills": ["linkedin-adapter", "twitter-adapter", "instagram-adapter"]
     }
   },
   "env": {
@@ -124,7 +184,10 @@
       "INSTAGRAM_DMS_PER_DAY",
       "DEFAULT_MIN_DELAY_SECONDS",
       "DEFAULT_MAX_DELAY_SECONDS",
-      "WORKFLOW_TIMEZONE"
+      "WORKFLOW_TIMEZONE",
+      "ANALYTICS_RETENTION_DAYS",
+      "CONTENT_OUTPUT_DIR",
+      "SEO_OUTPUT_DIR"
     ]
   },
   "capabilities": {
@@ -148,13 +211,36 @@
     "discovery": {
       "exa_ai": true,
       "linkedin_search": true,
-      "company_research": true
+      "company_research": true,
+      "websets": true
     },
     "workflows": {
       "multi_step": true,
       "multi_platform": true,
       "rate_limiting": true,
-      "scheduling": true
+      "scheduling": true,
+      "visual_canvas": true
+    },
+    "analytics": {
+      "campaign_metrics": true,
+      "platform_stats": true,
+      "trend_reports": true
+    },
+    "content": {
+      "blog_creation": true,
+      "social_posts": true,
+      "content_calendar": true
+    },
+    "seo": {
+      "keyword_research": true,
+      "competitor_analysis": true,
+      "content_optimization": true
     }
+  },
+  "routing": {
+    "keyword_router": ".claude/hooks/keyword-router.cjs",
+    "pre_tool_router": ".claude/hooks/pre-tool-router.cjs",
+    "context_detector": ".claude/hooks/context-detector.cjs",
+    "workflow_triggers": ".claude/workflows/workflow-triggers.yaml"
   }
 }

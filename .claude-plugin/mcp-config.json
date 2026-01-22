@@ -1,0 +1,148 @@
+{
+  "version": "1.0",
+  "description": "MCP server configuration for 10x Outreach Skill",
+  "servers": {
+    "exa": {
+      "name": "Exa AI",
+      "description": "Semantic search and research capabilities",
+      "type": "http",
+      "enabled": true,
+      "required_env": ["EXA_API_KEY"],
+      "tools": {
+        "web_search_exa": {
+          "description": "Search the web using Exa AI semantic search",
+          "use_for": ["discovery", "research", "content-research", "seo"]
+        },
+        "linkedin_search_exa": {
+          "description": "Search for people on LinkedIn",
+          "use_for": ["discovery", "linkedin-research"]
+        },
+        "company_research_exa": {
+          "description": "Research companies and organizations",
+          "use_for": ["discovery", "competitor-analysis", "seo"]
+        },
+        "deep_researcher_start": {
+          "description": "Start a deep research task",
+          "use_for": ["in-depth-research", "content-marketing"]
+        },
+        "deep_researcher_check": {
+          "description": "Check deep research progress",
+          "use_for": ["in-depth-research"]
+        },
+        "create_webset": {
+          "description": "Create a curated web collection",
+          "use_for": ["content-curation", "research-organization"]
+        },
+        "get_webset": {
+          "description": "Get webset details",
+          "use_for": ["content-curation"]
+        },
+        "list_websets": {
+          "description": "List all websets",
+          "use_for": ["content-curation"]
+        }
+      },
+      "skill_mappings": {
+        "discovery-engine": ["web_search_exa", "linkedin_search_exa", "company_research_exa"],
+        "content-marketing": ["web_search_exa", "deep_researcher_start", "deep_researcher_check"],
+        "seo-optimization": ["web_search_exa", "company_research_exa", "create_webset"]
+      }
+    },
+    "browser-use": {
+      "name": "Browser-Use MCP",
+      "description": "Browser automation for social platforms",
+      "type": "mcp",
+      "enabled": true,
+      "tools": {
+        "browser_task": {
+          "description": "Execute a browser automation task",
+          "use_for": ["social-automation", "web-interaction"]
+        },
+        "list_browser_profiles": {
+          "description": "List available browser profiles",
+          "use_for": ["profile-management"]
+        },
+        "monitor_task": {
+          "description": "Monitor task progress",
+          "use_for": ["task-tracking"]
+        },
+        "list_skills": {
+          "description": "List available browser skills",
+          "use_for": ["skill-discovery"]
+        },
+        "get_cookies": {
+          "description": "Get cookies from browser profile",
+          "use_for": ["authentication"]
+        },
+        "execute_skill": {
+          "description": "Execute a pre-built skill",
+          "use_for": ["social-automation"]
+        }
+      },
+      "skill_mappings": {
+        "linkedin-adapter": ["browser_task", "list_browser_profiles", "execute_skill"],
+        "twitter-adapter": ["browser_task", "list_browser_profiles", "execute_skill"],
+        "instagram-adapter": ["browser_task", "list_browser_profiles", "execute_skill"]
+      }
+    },
+    "gmail": {
+      "name": "Gmail API",
+      "description": "Gmail email operations",
+      "type": "internal",
+      "enabled": true,
+      "required_env": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"],
+      "tools": {
+        "gmail_send": {
+          "description": "Send an email",
+          "use_for": ["email-sending", "campaigns"]
+        },
+        "gmail_read": {
+          "description": "Read emails from inbox",
+          "use_for": ["inbox-reading"]
+        },
+        "gmail_search": {
+          "description": "Search emails",
+          "use_for": ["email-search"]
+        },
+        "gmail_reply": {
+          "description": "Reply to an email",
+          "use_for": ["email-reply"]
+        }
+      },
+      "skill_mappings": {
+        "outreach-manager": ["gmail_send"],
+        "inbox-reader": ["gmail_read", "gmail_search"],
+        "email-composer": ["gmail_send"],
+        "reply-generator": ["gmail_reply"],
+        "email-summarizer": ["gmail_read"]
+      }
+    }
+  },
+  "routing_rules": {
+    "discovery": {
+      "primary_mcp": "exa",
+      "fallback_mcp": "browser-use",
+      "reason": "Exa provides semantic search for discovery"
+    },
+    "social_automation": {
+      "primary_mcp": "browser-use",
+      "fallback_mcp": null,
+      "reason": "Browser automation required for social platforms"
+    },
+    "email": {
+      "primary_mcp": "gmail",
+      "fallback_mcp": null,
+      "reason": "Direct API access for email"
+    },
+    "content_research": {
+      "primary_mcp": "exa",
+      "fallback_mcp": null,
+      "reason": "Semantic search for content research"
+    },
+    "seo": {
+      "primary_mcp": "exa",
+      "fallback_mcp": null,
+      "reason": "Research capabilities for SEO"
+    }
+  }
+}

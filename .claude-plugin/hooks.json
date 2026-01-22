@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "hooks": {
+    "pre_request": [
+      {
+        "name": "context-detector",
+        "path": "../.claude/hooks/context-detector.cjs",
+        "enabled": true,
+        "priority": 10,
+        "description": "Analyzes user intent and extracts entities from messages",
+        "exports": ["detectIntent", "extractEntities", "detectContext", "analyzeMessage"]
+      },
+      {
+        "name": "keyword-router",
+        "path": "../.claude/hooks/keyword-router.cjs",
+        "enabled": true,
+        "priority": 20,
+        "description": "Routes requests to appropriate skills based on keywords",
+        "exports": ["detectKeywords", "getMCPRecommendation", "routeRequest"]
+      }
+    ],
+    "pre_tool": [
+      {
+        "name": "pre-tool-router",
+        "path": "../.claude/hooks/pre-tool-router.cjs",
+        "enabled": true,
+        "priority": 10,
+        "description": "Selects optimal MCP server and applies rate limiting",
+        "exports": ["getMCPForTool", "selectMCPForOperation", "routeToAgent", "checkRateLimit", "preProcessToolCall"]
+      }
+    ],
+    "post_tool": [
+      {
+        "name": "tool-logger",
+        "enabled": true,
+        "priority": 10,
+        "description": "Logs tool usage for analytics",
+        "config": {
+          "log_dir": "output/logs/tool-usage",
+          "log_format": "jsonl"
+        }
+      }
+    ],
+    "status_update": [
+      {
+        "name": "context-tracker",
+        "path": "../.claude/hooks/lib/context-tracker.cjs",
+        "enabled": true,
+        "priority": 10,
+        "description": "Tracks context window usage for statusline",
+        "exports": ["trackContext", "writeResetMarker", "getCompactThreshold"]
+      }
+    ]
+  },
+  "routing": {
+    "default_skill": null,
+    "fallback_behavior": "ask_user",
+    "confidence_threshold": 0.7,
+    "mcp_preferences": {
+      "discovery": "exa",
+      "social": "browser-use",
+      "email": "gmail"
+    }
+  },
+  "rate_limits": {
+    "global": {
+      "requests_per_minute": 60,
+      "requests_per_hour": 500
+    },
+    "per_platform": {
+      "linkedin": {
+        "actions_per_day": 100,
+        "cooldown_seconds": 60
+      },
+      "twitter": {
+        "actions_per_day": 100,
+        "cooldown_seconds": 30
+      },
+      "instagram": {
+        "actions_per_day": 80,
+        "cooldown_seconds": 60
+      },
+      "email": {
+        "sends_per_day": 100,
+        "cooldown_seconds": 60
+      }
+    }
+  }
+}

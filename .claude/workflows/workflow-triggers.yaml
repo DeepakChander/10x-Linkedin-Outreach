@@ -1,0 +1,228 @@
+# Workflow Trigger Configuration
+# Defines automatic triggers and routing rules for the 10x Outreach System
+
+version: "1.0"
+name: "Workflow Triggers"
+description: "Automated workflow triggers based on events and conditions"
+
+# Keyword-based triggers
+keyword_triggers:
+  # Discovery triggers
+  - keywords: ["find", "discover", "search", "lookup", "research"]
+    context: ["people", "contacts", "leads", "prospects", "founders"]
+    skill: "discovery-engine"
+    mcp: "exa"
+    priority: 10
+
+  # Email campaign triggers
+  - keywords: ["send", "email", "campaign", "outreach"]
+    context: ["bulk", "multiple", "list", "batch"]
+    skill: "outreach-manager"
+    mcp: "gmail"
+    priority: 10
+
+  # Single email triggers
+  - keywords: ["write", "compose", "draft"]
+    context: ["email", "message"]
+    skill: "email-composer"
+    mcp: "gmail"
+    priority: 9
+
+  # LinkedIn triggers
+  - keywords: ["linkedin", "connect", "connection"]
+    skill: "linkedin-adapter"
+    mcp: "browser-use"
+    priority: 10
+
+  # Twitter triggers
+  - keywords: ["twitter", "tweet", "follow"]
+    skill: "twitter-adapter"
+    mcp: "browser-use"
+    priority: 10
+
+  # Instagram triggers
+  - keywords: ["instagram", "ig", "insta"]
+    skill: "instagram-adapter"
+    mcp: "browser-use"
+    priority: 10
+
+  # Workflow triggers
+  - keywords: ["workflow", "automation", "sequence"]
+    skill: "workflow-engine"
+    priority: 9
+
+  # Canvas triggers
+  - keywords: ["canvas", "visual", "design"]
+    skill: "canvas-workflow"
+    priority: 8
+
+  # Analytics triggers
+  - keywords: ["analytics", "metrics", "stats", "performance"]
+    skill: "analytics"
+    priority: 8
+
+  # Content triggers
+  - keywords: ["blog", "article", "content", "post"]
+    skill: "content-marketing"
+    mcp: "exa"
+    priority: 8
+
+  # SEO triggers
+  - keywords: ["seo", "keyword", "ranking", "backlink"]
+    skill: "seo-optimization"
+    mcp: "exa"
+    priority: 9
+
+# Event-based triggers
+event_triggers:
+  # On new email received
+  email_received:
+    enabled: true
+    conditions:
+      - type: "contains"
+        field: "subject"
+        values: ["RE:", "Re:", "reply"]
+    action:
+      skill: "inbox-reader"
+      notify: true
+
+  # On workflow completion
+  workflow_completed:
+    enabled: true
+    action:
+      skill: "analytics"
+      generate_report: true
+
+  # On rate limit warning
+  rate_limit_warning:
+    enabled: true
+    threshold: 0.8  # 80% of limit
+    action:
+      notify: true
+      pause_workflow: false
+
+  # On daily schedule
+  daily_digest:
+    enabled: false
+    schedule: "09:00"
+    timezone: "America/Los_Angeles"
+    action:
+      skill: "email-summarizer"
+      generate_digest: true
+
+# Conditional routing rules
+routing_rules:
+  # Route bulk operations to outreach manager
+  - condition: "context.isBulk == true && intent.includes('email')"
+    route_to: "outreach-manager"
+    priority: 10
+
+  # Route single operations to composer
+  - condition: "context.isSingle == true && intent.includes('email')"
+    route_to: "email-composer"
+    priority: 10
+
+  # Route research to discovery
+  - condition: "context.isResearch == true"
+    route_to: "discovery-engine"
+    priority: 9
+
+  # Route urgent to high-priority queue
+  - condition: "context.isUrgent == true"
+    priority_boost: 5
+    skip_queue: true
+
+# MCP preference rules
+mcp_preferences:
+  # Discovery operations prefer Exa
+  discovery:
+    primary: "exa"
+    fallback: "browser-use"
+    reason: "Exa provides semantic search"
+
+  # Social operations require browser-use
+  social:
+    primary: "browser-use"
+    fallback: null
+    reason: "Browser automation required"
+
+  # Email operations use Gmail API
+  email:
+    primary: "gmail"
+    fallback: null
+    reason: "Direct API access"
+
+  # Content research prefers Exa
+  content:
+    primary: "exa"
+    fallback: null
+    reason: "Semantic content discovery"
+
+# Rate limiting configuration
+rate_limits:
+  linkedin:
+    connections_per_day: 30
+    messages_per_day: 50
+    views_per_day: 100
+
+  twitter:
+    follows_per_day: 50
+    dms_per_day: 30
+    likes_per_day: 100
+
+  instagram:
+    follows_per_day: 40
+    dms_per_day: 20
+    likes_per_day: 100
+
+  email:
+    sends_per_day: 100
+    delay_seconds: 60
+
+# Workflow templates that can be triggered
+workflow_templates:
+  b2b_outreach:
+    trigger_keywords: ["b2b", "business", "professional"]
+    file: "workflows/examples/b2b_professional.yaml"
+
+  influencer_outreach:
+    trigger_keywords: ["influencer", "creator", "thought leader"]
+    file: "workflows/examples/influencer_outreach.yaml"
+
+  brand_outreach:
+    trigger_keywords: ["brand", "company", "partnership"]
+    file: "workflows/examples/brand_outreach.yaml"
+
+  multi_platform:
+    trigger_keywords: ["multi-platform", "all platforms", "everywhere"]
+    file: "workflows/examples/multi_platform_sequence.yaml"
+
+# Hook integrations
+hooks:
+  pre_request:
+    - name: "context-detector"
+      path: ".claude/hooks/context-detector.cjs"
+      enabled: true
+
+    - name: "keyword-router"
+      path: ".claude/hooks/keyword-router.cjs"
+      enabled: true
+
+  pre_tool:
+    - name: "pre-tool-router"
+      path: ".claude/hooks/pre-tool-router.cjs"
+      enabled: true
+
+  post_tool:
+    - name: "tool-logger"
+      enabled: true
+      log_to: "output/logs/tool-usage/"
+
+# Default settings
+defaults:
+  skill: "discovery-engine"
+  mcp: null
+  priority: 5
+  timeout_seconds: 300
+  retry_count: 3
+  retry_delay_seconds: 5
