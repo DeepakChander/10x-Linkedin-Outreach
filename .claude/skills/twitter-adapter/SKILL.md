@@ -3,7 +3,7 @@ name: twitter-adapter
 description: |
   Twitter/X automation adapter for the 100X Outreach System.
   Use this skill when performing Twitter actions like following, DMing, liking tweets, replying, or retweeting.
-  This skill controls Browser-Use MCP to execute Twitter actions with templates.
+  This skill controls the ClaudeKit Browser Extension to execute Twitter actions with templates.
 allowed-tools:
   - Bash
   - Read
@@ -12,30 +12,44 @@ allowed-tools:
   - Grep
   - TodoWrite
   - AskUserQuestion
-  - mcp__browser-use__browser_task
-  - mcp__browser-use__list_browser_profiles
-  - mcp__browser-use__monitor_task
+  - WebFetch
 ---
 
 # Twitter/X Adapter Skill
 
-Automates Twitter/X actions using Browser-Use MCP with intelligent template rendering.
+Automates Twitter/X actions using the ClaudeKit Universal Browser Extension with intelligent template rendering.
 
-## Browser-Use MCP: Cloud-Hosted
+## ClaudeKit Browser Extension: Local Control
 
-**No local installation required!** Browser-Use MCP is cloud-hosted via Claude Code.
-Tools available:
-- `mcp__browser-use__browser_task` - Execute browser automation
-- `mcp__browser-use__list_browser_profiles` - List profiles
-- `mcp__browser-use__monitor_task` - Monitor progress
+**Fast, local browser automation!** The ClaudeKit extension provides direct control over your browser via WebSocket.
 
-## IMPORTANT: You Control Browser-Use
+Benefits over Browser-Use MCP:
+- ✅ **Faster**: Local execution, no cloud latency
+- ✅ **Free**: No usage costs
+- ✅ **Visible**: See actions in real-time
+- ✅ **Persistent**: Uses your real Twitter/X account
+- ✅ **Activity Tracking**: All actions logged automatically
+- ✅ **Rate Limiting**: Smart rate limits prevent Twitter detection
 
-**You are the brain that orchestrates Browser-Use.** This skill tells you exactly how to:
+## Architecture
+
+```
+Claude Code (You)
+    ↓ HTTP API
+Canvas Server (localhost:3000)
+    ↓ WebSocket
+Browser Extension
+    ↓ Chrome APIs
+Twitter.com / X.com
+```
+
+## IMPORTANT: You Control the Extension
+
+**You are the brain that orchestrates the extension.** This skill tells you exactly how to:
 1. Load and render templates
-2. Generate Browser-Use tasks
-3. Execute actions via Browser-Use MCP
-4. Monitor and report results
+2. Send commands to the extension via HTTP API
+3. Wait for action results
+4. Monitor and report progress
 
 ## When to Use This Skill
 
@@ -90,14 +104,36 @@ Use this skill when the user wants to:
 
 ## CRITICAL: Step-by-Step Execution Flow
 
-### Step 1: Get Browser Profile
+### Prerequisites
 
-First, get the user's Twitter browser profile:
+1. **Canvas server must be running:**
+   ```bash
+   cd canvas && npm start
+   # Server at http://localhost:3000
+   # WebSocket at ws://localhost:3000/ws
+   ```
 
+2. **Browser extension must be installed:**
+   - Load `.claude/skills/browser-extension` in Chrome
+   - Extension badge should show "✓" (connected)
+
+3. **User must be logged into Twitter/X** in their browser
+
+### Step 1: Check Extension Connection
+
+Verify the extension is connected:
+
+```bash
+curl http://localhost:3000/api/extension/status
 ```
-Use mcp__browser-use__list_browser_profiles to get available profiles.
-Ask user which profile to use if multiple exist.
-Save the profile_id for later use.
+
+Expected response:
+```json
+{
+  "connected": true,
+  "extensionId": "abc123...",
+  "capabilities": ["linkedin", "instagram", "twitter", "google"]
+}
 ```
 
 ### Step 2: Load and Render Template
@@ -112,62 +148,111 @@ python .claude/scripts/template_loader.py list --platform twitter --category dms
 python .claude/scripts/template_loader.py render --path twitter/dms/cold_dm --var first_name "John" --var topic "AI" --var my_name "Your Name"
 ```
 
-### Step 3: Generate Browser-Use Task
+This returns the rendered message text.
 
-Use the Twitter adapter to generate a Browser-Use task:
+### Step 3: Send Action to Extension
 
-```bash
-# Generate task for follow
-python .claude/scripts/twitter_adapter.py task --action follow --handle "@username" --name "John Smith" --user default
-
-# Generate task for DM
-python .claude/scripts/twitter_adapter.py task --action dm --handle "@username" --name "John Smith" --message "RENDERED_TEMPLATE_TEXT" --user default
-
-# Generate task for reply
-python .claude/scripts/twitter_adapter.py task --action reply --handle "@username" --name "John Smith" --tweet-url "https://x.com/user/status/123" --message "RENDERED_TEMPLATE_TEXT" --user default
-
-# Generate task for like
-python .claude/scripts/twitter_adapter.py task --action like_tweet --handle "@username" --name "John Smith" --tweet-url "https://x.com/user/status/123" --user default
-```
-
-The adapter returns JSON with:
-- `task`: The Browser-Use task description
-- `max_steps`: Recommended max steps
-- `can_proceed`: Whether rate limits allow this action
-- `message`: The rendered message
-
-### Step 4: Execute via Browser-Use MCP
-
-Use the generated task with Browser-Use:
-
-```
-Use mcp__browser-use__browser_task with:
-- task: The task description from the adapter
-- profile_id: The user's Twitter browser profile
-- max_steps: The recommended max_steps from adapter
-```
-
-### Step 5: Monitor Task Progress
-
-Poll the task until completion:
-
-```
-Use mcp__browser-use__monitor_task with the task_id.
-Poll every few seconds until status is "completed" or "failed".
-Report progress to user: "Step 3/6 complete - sending DM..."
-```
-
-### Step 6: Record Action and Get Delay
-
-Record the action for rate limiting:
+Send Twitter action command via HTTP API:
 
 ```bash
-# Record successful action
-python .claude/scripts/rate_limiter.py --user default --platform twitter --action dm --record --success --target "@username"
+# Follow user
+curl -X POST http://localhost:3000/api/twitter/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "follow",
+    "username": "elonmusk"
+  }'
 
-# Get recommended delay before next action
-python .claude/scripts/rate_limiter.py --user default --platform twitter --action dm --delay
+# Send DM
+curl -X POST http://localhost:3000/api/twitter/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "dm",
+    "username": "founder123",
+    "message": "Hey! Love what you're building with your startup..."
+  }'
+
+# Like tweet
+curl -X POST http://localhost:3000/api/twitter/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "like",
+    "tweetUrl": "https://x.com/user/status/123456789"
+  }'
+
+# Reply to tweet
+curl -X POST http://localhost:3000/api/twitter/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "reply",
+    "tweetUrl": "https://x.com/user/status/123456789",
+    "text": "Great insights! This really resonates..."
+  }'
+
+# Retweet
+curl -X POST http://localhost:3000/api/twitter/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "retweet",
+    "tweetUrl": "https://x.com/user/status/123456789"
+  }'
+
+# Quote tweet
+curl -X POST http://localhost:3000/api/twitter/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "quote_tweet",
+    "tweetUrl": "https://x.com/user/status/123456789",
+    "text": "This! Adding to this point..."
+  }'
 ```
+
+### Step 4: Wait for Result
+
+The API call returns immediately with the result:
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "action": "dm",
+  "timestamp": "2026-01-22T17:30:00Z",
+  "status": "sent",
+  "rateLimit": {
+    "allowed": true,
+    "remaining": 28,
+    "limit": 30,
+    "resetDate": "2026-01-22"
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "action": "dm",
+  "error": "Daily DM limit reached (30/day). Resets tomorrow.",
+  "timestamp": "2026-01-22T17:30:00Z"
+}
+```
+
+### Step 5: Report to User
+
+Tell the user what happened:
+- ✅ "Successfully sent DM to @founder123 (28 DMs remaining today)"
+- ❌ "Failed to send DM: Daily limit reached. Resets tomorrow."
+- ⏸️ "Already following @username. Skipping."
+
+### Step 6: Activity Tracking (Automatic)
+
+The extension automatically records all Twitter activity:
+- Tracks follows, DMs, likes, retweets, replies
+- Stores in browser IndexedDB
+- Forwards to analytics database
+- Triggers automated follow-up workflows
+
+No manual recording needed!
 
 ## Example: Send Twitter DM
 
@@ -175,42 +260,44 @@ python .claude/scripts/rate_limiter.py --user default --platform twitter --actio
 
 **You should:**
 
-1. **Get profile:**
+1. **Check extension:**
+   ```bash
+   curl http://localhost:3000/api/extension/status
    ```
-   Call mcp__browser-use__list_browser_profiles
-   → Get Twitter profile_id
-   ```
+   → Verify extension is connected
 
 2. **Render template:**
    ```bash
    python .claude/scripts/template_loader.py render --path twitter/dms/collaboration --var first_name "Founder" --var my_name "Your Name" --var topic "AI tools"
    ```
-   → Get rendered message
+   → Get rendered message: "Hey Founder! Love your content on AI tools..."
 
-3. **Generate task:**
+3. **Send to extension:**
    ```bash
-   python .claude/scripts/twitter_adapter.py task --action dm --handle "@founder123" --name "Founder" --message "Hey Founder! Love your content..." --user default
-   ```
-   → Get Browser-Use task description
-
-4. **Execute:**
-   ```
-   Call mcp__browser-use__browser_task with:
-   - task: "Send a direct message to Founder (@founder123) on Twitter/X..."
-   - profile_id: "abc123"
-   - max_steps: 10
+   curl -X POST http://localhost:3000/api/twitter/action \
+     -H "Content-Type: application/json" \
+     -d '{
+       "type": "dm",
+       "username": "founder123",
+       "message": "Hey Founder! Love your content on AI tools..."
+     }'
    ```
 
-5. **Monitor:**
-   ```
-   Call mcp__browser-use__monitor_task(task_id)
-   Report: "DM sent to @founder123 successfully!"
+4. **Get result (immediate):**
+   ```json
+   {
+     "success": true,
+     "status": "sent",
+     "rateLimit": { "remaining": 28, "limit": 30 }
+   }
    ```
 
-6. **Record:**
-   ```bash
-   python .claude/scripts/rate_limiter.py --user default --platform twitter --action dm --record --success --target "@founder123"
+5. **Report to user:**
    ```
+   ✅ DM sent to @founder123 successfully! (28 DMs remaining today)
+   ```
+
+That's it! The extension handles all the browser automation automatically.
 
 ## Example: Follow and Engage Sequence
 
@@ -226,19 +313,29 @@ python .claude/scripts/rate_limiter.py --user default --platform twitter --actio
 
    Actions:
    1. Follow @techguru
-   2. Like their latest tweet
+   2. Wait 2-3 minutes
+   3. Like their latest tweet
 
-   Estimated time: ~3 minutes (with delay)
+   Estimated time: ~5 minutes
    ═══════════════════════════════════════════
 
    Proceed?
    ```
 
 2. After approval, execute sequentially:
-   - Follow user
-   - Wait for rate-limited delay (1-5 minutes)
-   - Like their latest tweet
-   - Report completion
+   ```bash
+   # 1. Follow user
+   curl POST /api/twitter/action { "type": "follow", "username": "techguru" }
+
+   # 2. Wait (humanize)
+   sleep(random(120, 180))
+
+   # 3. Like their latest tweet
+   curl POST /api/twitter/action { "type": "like", "tweetUrl": "..." }
+
+   # 4. Report
+   print("✅ Followed and engaged with @techguru")
+   ```
 
 ## Example: Bulk DM Outreach (Single Approval)
 
@@ -261,17 +358,73 @@ python .claude/scripts/rate_limiter.py --user default --platform twitter --actio
    4. @founder4 - Alice (Founder at AppD)
    5. @founder5 - Mike (CEO at PlatformE)
 
-   Estimated time: ~25 minutes
+   Rate Limit: 30 DMs remaining today
+   Estimated time: ~15 minutes (3 min/DM)
    ═══════════════════════════════════════════
 
    Proceed with all 5 DMs?
    ```
 
 2. After single approval, execute ALL autonomously:
-   - Render template for each person
-   - Execute via Browser-Use
-   - Wait for rate-limited delay (1-5 minutes)
-   - Report progress after each DM
+   ```bash
+   for founder in targets:
+     # 1. Render template
+     message = render_template(founder)
+
+     # 2. Send to extension
+     result = curl POST /api/twitter/action {
+       "type": "dm",
+       "username": founder.handle,
+       "message": message
+     }
+
+     # 3. Report progress
+     print(f"✅ {founder.name}: {result.status}")
+
+     # 4. Smart delay (2-4 minutes between DMs)
+     sleep(random(120, 240))
+   ```
+
+3. Final summary:
+   ```
+   ✅ Bulk DM outreach complete!
+   - 5/5 DMs sent successfully
+   - 25 DMs remaining today
+   - Activity recorded automatically
+   ```
+
+## Rate Limits (Built into Extension)
+
+The extension automatically enforces these daily limits:
+
+| Action | Daily Limit | Auto-Tracked | Error if Exceeded |
+|--------|-------------|--------------|-------------------|
+| follow | 50 | ✅ | "Daily follow limit reached" |
+| dm | 30 | ✅ | "Daily DM limit reached" |
+| like | 100 | ✅ | "Daily like limit reached" |
+| reply | 50 | ✅ | "Daily reply limit reached" |
+| retweet | 50 | ✅ | "Daily retweet limit reached" |
+
+**All limits reset at midnight (local time).**
+
+## Check Rate Limits
+
+```bash
+# Check extension status and rate limits
+curl http://localhost:3000/api/twitter/limits
+```
+
+Response:
+```json
+{
+  "follows": { "used": 15, "remaining": 35, "limit": 50 },
+  "dms": { "used": 5, "remaining": 25, "limit": 30 },
+  "likes": { "used": 40, "remaining": 60, "limit": 100 },
+  "replies": { "used": 10, "remaining": 40, "limit": 50 },
+  "retweets": { "used": 8, "remaining": 42, "limit": 50 },
+  "resetDate": "2026-01-23"
+}
+```
    - Final summary when complete
 
 ## Rate Limits

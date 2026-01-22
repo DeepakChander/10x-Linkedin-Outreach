@@ -1,5 +1,5 @@
 {
-  "name": "100x-outreach-skill",
+  "name": "10x-outreach-skill",
   "version": "2.0.0",
   "description": "Complete multi-platform outreach automation for Claude Code. Supports Gmail, LinkedIn, Twitter, Instagram with team management, intelligent discovery via Exa AI, and workflow orchestration with human-like rate limiting.",
   "author": "Anit",
@@ -33,7 +33,10 @@
     ".claude/skills/linkedin-adapter",
     ".claude/skills/twitter-adapter",
     ".claude/skills/instagram-adapter",
-    ".claude/skills/gmail-adapter"
+    ".claude/skills/gmail-adapter",
+    ".claude/skills/canvas-workflow",
+    ".claude/skills/linkedin-lookback",
+    ".claude/skills/start-app.md"
   ],
   "agents": [
     ".claude/agents/email-planner.md",
@@ -50,7 +53,10 @@
     ".claude/commands/workflow.md",
     ".claude/commands/linkedin.md",
     ".claude/commands/twitter.md",
-    ".claude/commands/instagram.md"
+    ".claude/commands/instagram.md",
+    ".claude/commands/canvas.md",
+    ".claude/commands/start.md",
+    ".claude/commands/lookback.md"
   ],
   "requires": {
     "python": ">=3.9",

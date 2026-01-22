@@ -3,7 +3,7 @@ name: instagram-adapter
 description: |
   Instagram automation adapter for the 100X Outreach System.
   Use this skill when performing Instagram actions like following, DMing, liking posts, commenting, or replying to stories.
-  This skill controls Browser-Use MCP to execute Instagram actions with templates.
+  This skill controls the ClaudeKit Browser Extension to execute Instagram actions with templates.
 allowed-tools:
   - Bash
   - Read
@@ -12,30 +12,44 @@ allowed-tools:
   - Grep
   - TodoWrite
   - AskUserQuestion
-  - mcp__browser-use__browser_task
-  - mcp__browser-use__list_browser_profiles
-  - mcp__browser-use__monitor_task
+  - WebFetch
 ---
 
 # Instagram Adapter Skill
 
-Automates Instagram actions using Browser-Use MCP with intelligent template rendering.
+Automates Instagram actions using the ClaudeKit Universal Browser Extension with intelligent template rendering.
 
-## Browser-Use MCP: Cloud-Hosted
+## ClaudeKit Browser Extension: Local Control
 
-**No local installation required!** Browser-Use MCP is cloud-hosted via Claude Code.
-Tools available:
-- `mcp__browser-use__browser_task` - Execute browser automation
-- `mcp__browser-use__list_browser_profiles` - List profiles
-- `mcp__browser-use__monitor_task` - Monitor progress
+**Fast, local browser automation!** The ClaudeKit extension provides direct control over your browser via WebSocket.
 
-## IMPORTANT: You Control Browser-Use
+Benefits over Browser-Use MCP:
+- ✅ **Faster**: Local execution, no cloud latency
+- ✅ **Free**: No usage costs
+- ✅ **Visible**: See actions in real-time
+- ✅ **Persistent**: Uses your real Instagram account
+- ✅ **Activity Tracking**: All actions logged automatically
+- ✅ **Rate Limiting**: Smart rate limits prevent Instagram detection
 
-**You are the brain that orchestrates Browser-Use.** This skill tells you exactly how to:
+## Architecture
+
+```
+Claude Code (You)
+    ↓ HTTP API
+Canvas Server (localhost:3000)
+    ↓ WebSocket
+Browser Extension
+    ↓ Chrome APIs
+Instagram.com
+```
+
+## IMPORTANT: You Control the Extension
+
+**You are the brain that orchestrates the extension.** This skill tells you exactly how to:
 1. Load and render templates
-2. Generate Browser-Use tasks
-3. Execute actions via Browser-Use MCP
-4. Monitor and report results
+2. Send commands to the extension via HTTP API
+3. Wait for action results
+4. Monitor and report progress
 
 ## When to Use This Skill
 
@@ -89,86 +103,118 @@ Use this skill when the user wants to:
 
 ## CRITICAL: Step-by-Step Execution Flow
 
-### Step 1: Get Browser Profile
+**Same architecture as LinkedIn/Twitter adapters** - see those for detailed flow.
 
-First, get the user's Instagram browser profile:
+### Quick Start
 
-```
-Use mcp__browser-use__list_browser_profiles to get available profiles.
-Ask user which profile to use if multiple exist.
-Save the profile_id for later use.
-```
+1. **Verify extension connected:**
+   ```bash
+   curl http://localhost:3000/api/extension/status
+   ```
 
-### Step 2: Load and Render Template
+2. **Render template (if needed):**
+   ```bash
+   python .claude/scripts/template_loader.py render --path instagram/dms/cold_dm --var first_name "John" --var my_name "Your Name"
+   ```
 
-Read the template file and render with Jinja2:
-
-```bash
-# List available templates
-python .claude/scripts/template_loader.py list --platform instagram --category dms
-
-# Render a template with variables
-python .claude/scripts/template_loader.py render --path instagram/dms/cold_dm --var first_name "John" --var what_you_like "your content" --var my_name "Your Name"
-```
-
-### Step 3: Generate Browser-Use Task
-
-Use the Instagram adapter to generate a Browser-Use task:
+3. **Send action to extension via HTTP API:**
 
 ```bash
-# Generate task for follow
-python .claude/scripts/instagram_adapter.py task --action follow --handle "@username" --name "John Smith" --user default
+# Follow user
+curl -X POST http://localhost:3000/api/instagram/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "follow",
+    "username": "influencer123"
+  }'
 
-# Generate task for DM
-python .claude/scripts/instagram_adapter.py task --action dm --handle "@username" --name "John Smith" --message "RENDERED_TEMPLATE_TEXT" --user default
+# Send DM
+curl -X POST http://localhost:3000/api/instagram/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "dm",
+    "username": "brandowner",
+    "message": "Hi! Love your brand aesthetic..."
+  }'
 
-# Generate task for comment
-python .claude/scripts/instagram_adapter.py task --action comment --handle "@username" --name "John Smith" --post-url "https://instagram.com/p/ABC123" --message "RENDERED_TEMPLATE_TEXT" --user default
+# Like post
+curl -X POST http://localhost:3000/api/instagram/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "like",
+    "postUrl": "https://instagram.com/p/ABC123XYZ"
+  }'
 
-# Generate task for like
-python .claude/scripts/instagram_adapter.py task --action like_post --handle "@username" --name "John Smith" --post-url "https://instagram.com/p/ABC123" --user default
+# Comment on post
+curl -X POST http://localhost:3000/api/instagram/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "comment",
+    "postUrl": "https://instagram.com/p/ABC123XYZ",
+    "comment": "Amazing content! Really inspiring!"
+  }'
 
-# Generate task for story reply
-python .claude/scripts/instagram_adapter.py task --action story_reply --handle "@username" --name "John Smith" --message "RENDERED_TEMPLATE_TEXT" --user default
+# Reply to story
+curl -X POST http://localhost:3000/api/instagram/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "story_reply",
+    "username": "creator456",
+    "message": "This is so relatable!"
+  }'
 ```
 
-The adapter returns JSON with:
-- `task`: The Browser-Use task description
-- `max_steps`: Recommended max steps
-- `can_proceed`: Whether rate limits allow this action
-- `message`: The rendered message
+4. **Get immediate result:**
+   ```json
+   {
+     "success": true,
+     "action": "dm",
+     "status": "sent",
+     "rateLimit": { "remaining": 45, "limit": 50 }
+   }
+   ```
 
-### Step 4: Execute via Browser-Use MCP
+5. **Report to user:**
+   ```
+   ✅ DM sent to @brandowner! (45 DMs remaining today)
+   ```
 
-Use the generated task with Browser-Use:
+## Rate Limits (Built into Extension)
 
-```
-Use mcp__browser-use__browser_task with:
-- task: The task description from the adapter
-- profile_id: The user's Instagram browser profile
-- max_steps: The recommended max_steps from adapter
-```
+The extension automatically enforces these daily limits:
 
-### Step 5: Monitor Task Progress
+| Action | Daily Limit | Auto-Tracked | Error if Exceeded |
+|--------|-------------|--------------|-------------------|
+| follow | 50 | ✅ | "Daily follow limit reached" |
+| dm | 50 | ✅ | "Daily DM limit reached" |
+| like | 100 | ✅ | "Daily like limit reached" |
+| comment | 40 | ✅ | "Daily comment limit reached" |
+| story_reply | 50 | ✅ | "Daily story reply limit reached" |
 
-Poll the task until completion:
+**All limits reset at midnight (local time).**
 
-```
-Use mcp__browser-use__monitor_task with the task_id.
-Poll every few seconds until status is "completed" or "failed".
-Report progress to user: "Step 4/10 complete - sending DM..."
-```
+**Instagram is MORE strict than LinkedIn/Twitter!** The extension uses longer delays:
+- 48-72 hours between DMs
+- 24-48 hours after following before DMing
+- Human-like randomization to avoid detection
 
-### Step 6: Record Action and Get Delay
-
-Record the action for rate limiting:
+## Check Rate Limits
 
 ```bash
-# Record successful action
-python .claude/scripts/rate_limiter.py --user default --platform instagram --action dm --record --success --target "@username"
+# Check extension status and rate limits
+curl http://localhost:3000/api/instagram/limits
+```
 
-# Get recommended delay before next action
-python .claude/scripts/rate_limiter.py --user default --platform instagram --action dm --delay
+Response:
+```json
+{
+  "follows": { "used": 20, "remaining": 30, "limit": 50 },
+  "dms": { "used": 5, "remaining": 45, "limit": 50 },
+  "likes": { "used": 60, "remaining": 40, "limit": 100 },
+  "comments": { "used": 15, "remaining": 25, "limit": 40 },
+  "storyReplies": { "used": 10, "remaining": 40, "limit": 50 },
+  "resetDate": "2026-01-23"
+}
 ```
 
 ## Example: Send Instagram DM

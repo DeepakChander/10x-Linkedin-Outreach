@@ -3,7 +3,7 @@ name: linkedin-adapter
 description: |
   LinkedIn automation adapter for the 100X Outreach System.
   Use this skill when performing LinkedIn actions like connecting, messaging, viewing profiles, liking posts, or commenting.
-  This skill controls Browser-Use MCP to execute LinkedIn actions with templates.
+  This skill controls the ClaudeKit Browser Extension to execute LinkedIn actions with templates.
 allowed-tools:
   - Bash
   - Read
@@ -12,30 +12,44 @@ allowed-tools:
   - Grep
   - TodoWrite
   - AskUserQuestion
-  - mcp__browser-use__browser_task
-  - mcp__browser-use__list_browser_profiles
-  - mcp__browser-use__monitor_task
+  - WebFetch
 ---
 
 # LinkedIn Adapter Skill
 
-Automates LinkedIn actions using Browser-Use MCP with intelligent template rendering.
+Automates LinkedIn actions using the ClaudeKit Universal Browser Extension with intelligent template rendering.
 
-## Browser-Use MCP: Cloud-Hosted
+## ClaudeKit Browser Extension: Local Control
 
-**No local installation required!** Browser-Use MCP is cloud-hosted via Claude Code.
-Tools available:
-- `mcp__browser-use__browser_task` - Execute browser automation
-- `mcp__browser-use__list_browser_profiles` - List profiles
-- `mcp__browser-use__monitor_task` - Monitor progress
+**Fast, local browser automation!** The ClaudeKit extension provides direct control over your browser via WebSocket.
 
-## IMPORTANT: You Control Browser-Use
+Benefits over Browser-Use MCP:
+- ✅ **Faster**: Local execution, no cloud latency
+- ✅ **Free**: No usage costs
+- ✅ **Visible**: See actions in real-time
+- ✅ **Persistent**: Uses your real LinkedIn account
+- ✅ **Activity Tracking**: Built-in LinkedIn Lookback integration
+- ✅ **Rate Limiting**: Smart rate limits prevent LinkedIn detection
 
-**You are the brain that orchestrates Browser-Use.** This skill tells you exactly how to:
+## Architecture
+
+```
+Claude Code (You)
+    ↓ HTTP API
+Canvas Server (localhost:3000)
+    ↓ WebSocket
+Browser Extension
+    ↓ Chrome APIs
+LinkedIn.com
+```
+
+## IMPORTANT: You Control the Extension
+
+**You are the brain that orchestrates the extension.** This skill tells you exactly how to:
 1. Load and render templates
-2. Generate Browser-Use tasks
-3. Execute actions via Browser-Use MCP
-4. Monitor and report results
+2. Send commands to the extension via HTTP API
+3. Wait for action results
+4. Monitor and report progress
 
 ## When to Use This Skill
 
@@ -98,15 +112,39 @@ Use this skill when the user wants to:
 
 ## CRITICAL: Step-by-Step Execution Flow
 
-### Step 1: Get Browser Profile
+### Prerequisites
 
-First, get the user's LinkedIn browser profile:
+1. **Canvas server must be running:**
+   ```bash
+   cd canvas && npm start
+   # Server at http://localhost:3000
+   # WebSocket at ws://localhost:3000/ws
+   ```
 
+2. **Browser extension must be installed:**
+   - Load `.claude/skills/browser-extension` in Chrome
+   - Extension badge should show "✓" (connected)
+
+3. **User must be logged into LinkedIn** in their browser
+
+### Step 1: Check Extension Connection
+
+Verify the extension is connected:
+
+```bash
+curl http://localhost:3000/api/extension/status
 ```
-Use mcp__browser-use__list_browser_profiles to get available profiles.
-Ask user which profile to use if multiple exist.
-Save the profile_id for later use.
+
+Expected response:
+```json
+{
+  "connected": true,
+  "extensionId": "abc123...",
+  "capabilities": ["linkedin", "instagram", "twitter", "google"]
+}
 ```
+
+If not connected, tell user to check extension popup.
 
 ### Step 2: Load and Render Template
 
@@ -120,62 +158,114 @@ python .claude/scripts/template_loader.py list --platform linkedin --category co
 python .claude/scripts/template_loader.py render --path linkedin/connection-requests/cold_outreach --var first_name "John" --var company "Acme Inc" --var industry "AI/ML" --var my_name "Your Name"
 ```
 
-### Step 3: Generate Browser-Use Task
+This returns the rendered message text.
 
-Use the LinkedIn adapter to generate a Browser-Use task:
+### Step 3: Send Action to Extension
 
-```bash
-# Generate task for connection request
-python .claude/scripts/linkedin_adapter.py task --action connect --url "https://linkedin.com/in/username" --name "John Smith" --message "RENDERED_TEMPLATE_TEXT" --user default
-
-# Generate task for messaging
-python .claude/scripts/linkedin_adapter.py task --action message --url "https://linkedin.com/in/username" --name "John Smith" --message "RENDERED_TEMPLATE_TEXT" --user default
-
-# Generate task for viewing profile
-python .claude/scripts/linkedin_adapter.py task --action view_profile --url "https://linkedin.com/in/username" --name "John Smith" --user default
-
-# Generate task for liking post
-python .claude/scripts/linkedin_adapter.py task --action like_post --url "https://linkedin.com/in/username" --name "John Smith" --user default
-```
-
-The adapter returns JSON with:
-- `task`: The Browser-Use task description
-- `max_steps`: Recommended max steps
-- `can_proceed`: Whether rate limits allow this action
-- `message`: The rendered message
-
-### Step 4: Execute via Browser-Use MCP
-
-Use the generated task with Browser-Use:
-
-```
-Use mcp__browser-use__browser_task with:
-- task: The task description from the adapter
-- profile_id: The user's LinkedIn browser profile
-- max_steps: The recommended max_steps from adapter
-```
-
-### Step 5: Monitor Task Progress
-
-Poll the task until completion:
-
-```
-Use mcp__browser-use__monitor_task with the task_id.
-Poll every few seconds until status is "completed" or "failed".
-Report progress to user: "Step 2/5 complete - clicked Connect button"
-```
-
-### Step 6: Record Action and Get Delay
-
-Record the action for rate limiting:
+Send LinkedIn action command via HTTP API:
 
 ```bash
-# Record successful action
-python .claude/scripts/rate_limiter.py --user default --platform linkedin --action connect --record --success --target "linkedin.com/in/username"
+# Connection request
+curl -X POST http://localhost:3000/api/linkedin/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "send_connection",
+    "profileUrl": "https://linkedin.com/in/johnsmith",
+    "note": "Hi John, I came across your profile..."
+  }'
 
-# Get recommended delay before next action
-python .claude/scripts/rate_limiter.py --user default --platform linkedin --action connect --delay
+# Send message
+curl -X POST http://localhost:3000/api/linkedin/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "send_message",
+    "profileUrl": "https://linkedin.com/in/johnsmith",
+    "message": "Thanks for connecting! I wanted to reach out..."
+  }'
+
+# View profile (warm-up)
+curl -X POST http://localhost:3000/api/linkedin/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "view_profile",
+    "profileUrl": "https://linkedin.com/in/johnsmith"
+  }'
+
+# Like post
+curl -X POST http://localhost:3000/api/linkedin/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "like_post",
+    "postUrl": "https://linkedin.com/feed/update/urn:li:activity:123456"
+  }'
+
+# Comment on post
+curl -X POST http://localhost:3000/api/linkedin/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "comment",
+    "postUrl": "https://linkedin.com/feed/update/urn:li:activity:123456",
+    "comment": "Great insights! I especially liked..."
+  }'
+
+# Send InMail (requires Premium)
+curl -X POST http://localhost:3000/api/linkedin/action \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "send_inmail",
+    "profileUrl": "https://linkedin.com/in/johnsmith",
+    "subject": "Partnership Opportunity",
+    "body": "Hi John, I have an exciting partnership opportunity..."
+  }'
 ```
+
+### Step 4: Wait for Result
+
+The API call returns immediately with the result:
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "action": "send_connection",
+  "timestamp": "2026-01-22T17:30:00Z",
+  "status": "sent",
+  "note": "Hi John, I came across your profile...",
+  "rateLimit": {
+    "allowed": true,
+    "remaining": 14,
+    "limit": 15,
+    "resetDate": "2026-01-22"
+  }
+}
+```
+
+**Error Response:**
+```json
+{
+  "success": false,
+  "action": "send_connection",
+  "error": "Daily connection limit reached (15/day). Resets tomorrow.",
+  "timestamp": "2026-01-22T17:30:00Z"
+}
+```
+
+### Step 5: Report to User
+
+Tell the user what happened:
+- ✅ "Successfully sent connection request to John Smith (14 connections remaining today)"
+- ❌ "Failed to send connection: Daily limit reached. Resets tomorrow."
+- ⏸️ "Profile already connected. Skipping."
+
+### Step 6: Record Activity (Automatic)
+
+The extension automatically records all LinkedIn activity:
+- Tracks profile views, connections, messages
+- Stores in browser IndexedDB
+- Forwards to LinkedIn Lookback database
+- Triggers automated follow-up workflows
+
+No manual recording needed!
 
 ## Example: Send Connection Request
 
@@ -183,42 +273,44 @@ python .claude/scripts/rate_limiter.py --user default --platform linkedin --acti
 
 **You should:**
 
-1. **Get profile:**
+1. **Check extension:**
+   ```bash
+   curl http://localhost:3000/api/extension/status
    ```
-   Call mcp__browser-use__list_browser_profiles
-   → Get LinkedIn profile_id
-   ```
+   → Verify extension is connected
 
 2. **Render template:**
    ```bash
    python .claude/scripts/template_loader.py render --path linkedin/connection-requests/cold_outreach --var first_name "John" --var company "UNKNOWN" --var my_name "Your Name"
    ```
-   → Get rendered message
+   → Get rendered message: "Hi John, I came across your profile..."
 
-3. **Generate task:**
+3. **Send to extension:**
    ```bash
-   python .claude/scripts/linkedin_adapter.py task --action connect --url "https://linkedin.com/in/johnsmith" --name "John Smith" --message "Hi John, I came across your profile..." --user default
-   ```
-   → Get Browser-Use task description
-
-4. **Execute:**
-   ```
-   Call mcp__browser-use__browser_task with:
-   - task: "Navigate to https://linkedin.com/in/johnsmith..."
-   - profile_id: "abc123"
-   - max_steps: 12
+   curl -X POST http://localhost:3000/api/linkedin/action \
+     -H "Content-Type: application/json" \
+     -d '{
+       "type": "send_connection",
+       "profileUrl": "https://linkedin.com/in/johnsmith",
+       "note": "Hi John, I came across your profile..."
+     }'
    ```
 
-5. **Monitor:**
-   ```
-   Call mcp__browser-use__monitor_task(task_id)
-   Report: "Connected with John Smith successfully!"
+4. **Get result (immediate):**
+   ```json
+   {
+     "success": true,
+     "status": "sent",
+     "rateLimit": { "remaining": 14, "limit": 15 }
+   }
    ```
 
-6. **Record:**
-   ```bash
-   python .claude/scripts/rate_limiter.py --user default --platform linkedin --action connect --record --success --target "linkedin.com/in/johnsmith"
+5. **Report to user:**
    ```
+   ✅ Connected with John Smith successfully! (14 connections remaining today)
+   ```
+
+That's it! The extension handles all the browser automation automatically.
 
 ## Example: Bulk Outreach (Single Approval)
 
@@ -241,36 +333,72 @@ python .claude/scripts/rate_limiter.py --user default --platform linkedin --acti
    4. Alice Chen (VP at BigCorp)
    5. Mike Brown (Director at MidCo)
 
-   Estimated time: ~30 minutes
+   Rate Limit: 15 connections remaining today
+   Estimated time: ~15 minutes (3 min/connection)
    ═══════════════════════════════════════════
 
    Proceed with all 5 connection requests?
    ```
 
 2. After single approval, execute ALL actions autonomously:
-   - Render template for each person
-   - Execute via Browser-Use
-   - Wait for rate-limited delay (2-10 minutes)
-   - Report progress after each action
-   - Final summary when complete
+   ```bash
+   for person in targets:
+     # 1. Render template
+     message = render_template(person)
 
-## Rate Limits
+     # 2. Send to extension
+     result = curl POST /api/linkedin/action {
+       "type": "send_connection",
+       "profileUrl": person.url,
+       "note": message
+     }
 
-| Action | Daily Limit | Min Delay | Max Delay |
-|--------|-------------|-----------|-----------|
-| view_profile | 100 | 30s | 120s |
-| like_post | 100 | 30s | 120s |
-| comment | 25 | 120s | 600s |
-| connect | 20 | 120s | 600s |
-| message | 50 | 120s | 600s |
-| inmail | 15 | 300s | 600s |
+     # 3. Report progress
+     print(f"✅ {person.name}: {result.status}")
+
+     # 4. Smart delay (2-5 minutes between connections)
+     sleep(random(120, 300))
+   ```
+
+3. Final summary:
+   ```
+   ✅ Bulk outreach complete!
+   - 5/5 connections sent successfully
+   - 10 connections remaining today
+   - Activity recorded in LinkedIn Lookback
+   ```
+
+## Rate Limits (Built into Extension)
+
+The extension automatically enforces these daily limits:
+
+| Action | Daily Limit | Auto-Tracked | Error if Exceeded |
+|--------|-------------|--------------|-------------------|
+| view_profile | 100 | ✅ | "Daily profile view limit reached" |
+| like_post | 50 | ✅ | "Daily like limit reached" |
+| comment | 30 | ✅ | "Daily comment limit reached" |
+| connect | 15 | ✅ | "Daily connection limit reached" |
+| message | 40 | ✅ | "Daily message limit reached" |
+| inmail | 5 | ✅ | "Daily InMail limit reached" |
+
+**All limits reset at midnight (local time).**
 
 ## Check Rate Limits
 
 ```bash
-# Check remaining actions
-python .claude/scripts/rate_limiter.py --user default --platform linkedin --remaining
+# Check extension status and rate limits
+curl http://localhost:3000/api/linkedin/limits
+```
 
-# Check if specific action is allowed
-python .claude/scripts/rate_limiter.py --user default --platform linkedin --action connect --check
+Response:
+```json
+{
+  "connections": { "used": 5, "remaining": 10, "limit": 15 },
+  "messages": { "used": 12, "remaining": 28, "limit": 40 },
+  "profileViews": { "used": 45, "remaining": 55, "limit": 100 },
+  "likes": { "used": 20, "remaining": 30, "limit": 50 },
+  "comments": { "used": 5, "remaining": 25, "limit": 30 },
+  "inmails": { "used": 0, "remaining": 5, "limit": 5 },
+  "resetDate": "2026-01-23"
+}
 ```
