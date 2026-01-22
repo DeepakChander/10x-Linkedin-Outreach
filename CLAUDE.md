@@ -1,16 +1,55 @@
-# 10x-Team Outreach System
+# 10x-Outreach-Skill - Multi-Platform Outreach System
 
-A comprehensive multi-platform outreach automation system for Claude Code with a visual workflow canvas.
+A comprehensive multi-platform outreach automation system for Claude Code with intelligent canvas visualization.
 
-**Recent Improvements** (v2.0):
-- ✅ Virtual environment support for isolated Python dependencies
-- ✅ n8n-style connection deletion (hover to delete, branching support)
-- ✅ Intelligent workflow naming with context (platform-nodes-timestamp)
-- ✅ Workflow execution tracking and status management
-- ✅ 60-second WebSocket polling (reduced from 500ms)
-- ✅ API endpoints for workflow management
+**Developed by 10x.in**
 
-See [IMPROVEMENTS.md](IMPROVEMENTS.md) for full details.
+---
+
+## 🚨 IMPORTANT: Initial Setup Check
+
+**BEFORE doing anything else, you MUST check if initial setup is complete.**
+
+### Setup Detection Protocol
+
+1. **Read the setup status file:**
+   ```
+   Read file: .claude/SETUP_CHECK.md
+   ```
+
+2. **Check if setup is complete:**
+   - If file contains "COMPLETE" → Setup is done, proceed normally
+   - If file contains "NOT COMPLETE" → Setup required, run auto-setup
+
+3. **If setup is NOT complete:**
+   ```python
+   # Run auto-setup
+   python .claude/scripts/auto_setup.py
+   ```
+
+4. **After setup completes:**
+   - File will be updated to "COMPLETE"
+   - User can now use all skills
+   - Statusline will appear in terminal
+
+**DO NOT allow user to use skills until setup is complete!**
+
+---
+
+## 📦 What is 10x-Outreach-Skill?
+
+A comprehensive multi-platform outreach automation system for Claude Code with:
+
+**Recent Features** (v3.0):
+- ✅ **Automatic setup on first initialization**
+- ✅ **Intelligent canvas visualization** (CSV, research, workflows, LinkedIn profiles)
+- ✅ **Multi-format export** (PDF, PPT, PNG, MD, TXT, etc.)
+- ✅ **Custom statusline** (shows directory, git, model, session, context usage)
+- ✅ **Exa AI integration** (semantic search, websets)
+- ✅ **Workflow automation** (visual design → automatic execution)
+- ✅ **Browser extension** (LinkedIn, Twitter, Instagram automation)
+
+See [INTELLIGENT-CANVAS-ARCHITECTURE.md](INTELLIGENT-CANVAS-ARCHITECTURE.md) for full details.
 
 ## Installation
 
