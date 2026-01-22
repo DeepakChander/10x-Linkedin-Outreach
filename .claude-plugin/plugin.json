@@ -1,0 +1,152 @@
+{
+  "name": "100x-outreach-skill",
+  "version": "2.0.0",
+  "description": "Complete multi-platform outreach automation for Claude Code. Supports Gmail, LinkedIn, Twitter, Instagram with team management, intelligent discovery via Exa AI, and workflow orchestration with human-like rate limiting.",
+  "author": "Anit",
+  "keywords": [
+    "email",
+    "gmail",
+    "outreach",
+    "linkedin",
+    "twitter",
+    "instagram",
+    "multi-platform",
+    "team",
+    "discovery",
+    "exa-ai",
+    "workflow",
+    "automation",
+    "campaigns",
+    "rate-limiting",
+    "browser-use"
+  ],
+  "skills": [
+    ".claude/skills/outreach-manager",
+    ".claude/skills/inbox-reader",
+    ".claude/skills/email-summarizer",
+    ".claude/skills/reply-generator",
+    ".claude/skills/email-composer",
+    ".claude/skills/template-manager",
+    ".claude/skills/team-manager",
+    ".claude/skills/discovery-engine",
+    ".claude/skills/workflow-engine",
+    ".claude/skills/linkedin-adapter",
+    ".claude/skills/twitter-adapter",
+    ".claude/skills/instagram-adapter",
+    ".claude/skills/gmail-adapter"
+  ],
+  "agents": [
+    ".claude/agents/email-planner.md",
+    ".claude/agents/email-executor.md"
+  ],
+  "commands": [
+    ".claude/commands/outreach.md",
+    ".claude/commands/inbox.md",
+    ".claude/commands/compose.md",
+    ".claude/commands/reply.md",
+    ".claude/commands/summarize.md",
+    ".claude/commands/team.md",
+    ".claude/commands/discover.md",
+    ".claude/commands/workflow.md",
+    ".claude/commands/linkedin.md",
+    ".claude/commands/twitter.md",
+    ".claude/commands/instagram.md"
+  ],
+  "requires": {
+    "python": ">=3.9",
+    "packages": [
+      "google-api-python-client",
+      "google-auth-httplib2",
+      "google-auth-oauthlib",
+      "gspread",
+      "oauth2client",
+      "python-dotenv",
+      "rich",
+      "jinja2",
+      "pandas",
+      "email-validator",
+      "html2text",
+      "pyyaml"
+    ]
+  },
+  "mcp_integrations": {
+    "exa": {
+      "description": "Exa AI for intelligent people discovery",
+      "tools": [
+        "linkedin_search_exa",
+        "company_research_exa",
+        "web_search_exa",
+        "deep_researcher_start",
+        "deep_researcher_check"
+      ],
+      "required_env": ["EXA_API_KEY"]
+    },
+    "browser-use": {
+      "description": "Browser automation for LinkedIn, Twitter, Instagram",
+      "tools": [
+        "browser_task",
+        "list_browser_profiles",
+        "monitor_task",
+        "get_cookies",
+        "execute_skill"
+      ]
+    }
+  },
+  "env": {
+    "required": [],
+    "optional": [
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+      "GOOGLE_REDIRECT_URI",
+      "GMAIL_ACCESS_TOKEN",
+      "GMAIL_REFRESH_TOKEN",
+      "GOOGLE_SHEET_ID",
+      "SENDER_EMAIL",
+      "SENDER_NAME",
+      "EMAIL_DELAY_SECONDS",
+      "MAX_EMAILS_PER_BATCH",
+      "DAILY_EMAIL_LIMIT",
+      "DRY_RUN_MODE",
+      "EXA_API_KEY",
+      "LINKEDIN_CONNECTIONS_PER_DAY",
+      "LINKEDIN_MESSAGES_PER_DAY",
+      "TWITTER_FOLLOWS_PER_DAY",
+      "TWITTER_DMS_PER_DAY",
+      "INSTAGRAM_FOLLOWS_PER_DAY",
+      "INSTAGRAM_DMS_PER_DAY",
+      "DEFAULT_MIN_DELAY_SECONDS",
+      "DEFAULT_MAX_DELAY_SECONDS",
+      "WORKFLOW_TIMEZONE"
+    ]
+  },
+  "capabilities": {
+    "email": {
+      "send_campaigns": true,
+      "read_inbox": true,
+      "compose": true,
+      "reply": true,
+      "summarize": true
+    },
+    "multi_platform": {
+      "linkedin": true,
+      "twitter": true,
+      "instagram": true
+    },
+    "team_management": {
+      "multi_user": true,
+      "per_user_credentials": true,
+      "browser_profiles": true
+    },
+    "discovery": {
+      "exa_ai": true,
+      "linkedin_search": true,
+      "company_research": true
+    },
+    "workflows": {
+      "multi_step": true,
+      "multi_platform": true,
+      "rate_limiting": true,
+      "scheduling": true
+    }
+  }
+}

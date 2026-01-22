@@ -1,0 +1,101 @@
+{
+  "mcpServers": {
+    "browser-use": {
+      "type": "cloud",
+      "provider": "claude-code",
+      "description": "Browser automation via Browser-Use MCP (cloud-hosted)",
+      "tools": [
+        "mcp__browser-use__browser_task",
+        "mcp__browser-use__list_browser_profiles",
+        "mcp__browser-use__monitor_task",
+        "mcp__browser-use__list_skills",
+        "mcp__browser-use__execute_skill",
+        "mcp__browser-use__get_cookies"
+      ],
+      "note": "Browser-Use MCP is available directly in Claude Code - no local installation required"
+    }
+  },
+  "skills": {
+    "discovery-engine": {
+      "description": "Find people for outreach using Exa AI search",
+      "path": ".claude/skills/discovery-engine/SKILL.md"
+    },
+    "team-manager": {
+      "description": "Manage team members and platform credentials",
+      "path": ".claude/skills/team-manager/SKILL.md"
+    },
+    "workflow-engine": {
+      "description": "Multi-step, multi-platform outreach workflows",
+      "path": ".claude/skills/workflow-engine/SKILL.md"
+    },
+    "gmail-adapter": {
+      "description": "Send emails via Gmail API",
+      "path": ".claude/skills/gmail-adapter/SKILL.md"
+    },
+    "linkedin-adapter": {
+      "description": "LinkedIn automation via Browser-Use",
+      "path": ".claude/skills/linkedin-adapter/SKILL.md"
+    },
+    "twitter-adapter": {
+      "description": "Twitter automation via Browser-Use",
+      "path": ".claude/skills/twitter-adapter/SKILL.md"
+    },
+    "instagram-adapter": {
+      "description": "Instagram automation via Browser-Use",
+      "path": ".claude/skills/instagram-adapter/SKILL.md"
+    },
+    "outreach-manager": {
+      "description": "Email campaign orchestration",
+      "path": ".claude/skills/outreach-manager/SKILL.md"
+    },
+    "inbox-reader": {
+      "description": "Read and search Gmail inbox",
+      "path": ".claude/skills/inbox-reader/SKILL.md"
+    },
+    "email-summarizer": {
+      "description": "Summarize and digest emails",
+      "path": ".claude/skills/email-summarizer/SKILL.md"
+    },
+    "email-composer": {
+      "description": "Compose individual emails",
+      "path": ".claude/skills/email-composer/SKILL.md"
+    },
+    "template-manager": {
+      "description": "Manage message templates",
+      "path": ".claude/skills/template-manager/SKILL.md"
+    },
+    "reply-generator": {
+      "description": "Generate and send email replies",
+      "path": ".claude/skills/reply-generator/SKILL.md"
+    }
+  },
+  "workflows": {
+    "path": ".claude/workflows",
+    "examples": [
+      "examples/b2b_professional.yaml",
+      "examples/brand_outreach.yaml",
+      "examples/influencer_outreach.yaml",
+      "examples/investor_outreach.yaml",
+      "examples/multi_platform_sequence.yaml"
+    ],
+    "rules": "outreach_rules.yaml"
+  },
+  "templates": {
+    "path": ".claude/templates",
+    "platforms": ["email", "linkedin", "twitter", "instagram"]
+  },
+  "scripts": {
+    "path": ".claude/scripts",
+    "core": [
+      "gmail_client.py",
+      "linkedin_adapter.py",
+      "twitter_adapter.py",
+      "instagram_adapter.py",
+      "workflow_engine.py",
+      "discovery_engine.py",
+      "team_manager.py",
+      "rate_limiter.py",
+      "template_loader.py"
+    ]
+  }
+}
