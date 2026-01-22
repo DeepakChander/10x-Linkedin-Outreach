@@ -53,7 +53,8 @@
       "WebFetch(domain:websets.exa.ai)",
       "Bash(python test_exa_integration.py:*)",
       "Bash(python:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(git checkout:*)"
     ]
   },
   "statusLine": {
