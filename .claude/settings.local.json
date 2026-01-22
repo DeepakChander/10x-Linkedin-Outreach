@@ -47,7 +47,14 @@
       "Bash(python canvas_client.py:*)",
       "WebFetch(domain:docs.n8n.io)",
       "Bash(git init:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(gh repo view:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(gh auth refresh:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote:*)"
     ]
   },
   "mcpConfig": ".claude/mcp.json"
