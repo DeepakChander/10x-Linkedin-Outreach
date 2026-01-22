@@ -29,10 +29,21 @@ let commandIdCounter = 0;
 // Track connected clients
 const clients = new Set();
 
+// Extension-specific tracking
+const extensionClients = new Set();
+const pendingCommands = new Map(); // commandId -> { resolve, reject, timeout }
+const activityLog = []; // Store activity-tracked messages
+
+// Activity log file path
+const activityLogPath = path.join(__dirname, '..', 'output', 'extension-activity.json');
+
 // WebSocket connection handler
 wss.on('connection', (ws) => {
-  console.log('✅ Canvas client connected via WebSocket');
+  console.log('✅ Client connected via WebSocket');
   clients.add(ws);
+
+  // Track client type
+  ws.isExtension = false;
 
   // Send welcome message
   ws.send(JSON.stringify({
@@ -41,22 +52,155 @@ wss.on('connection', (ws) => {
     timestamp: Date.now()
   }));
 
+  // Handle incoming messages from clients
+  ws.on('message', (data) => {
+    try {
+      const message = JSON.parse(data.toString());
+      handleWebSocketMessage(ws, message);
+    } catch (error) {
+      console.error('Failed to parse WebSocket message:', error);
+    }
+  });
+
   ws.on('close', () => {
-    console.log('❌ Canvas client disconnected');
-    clients.delete(ws);
+    if (ws.isExtension) {
+      console.log('❌ Extension client disconnected');
+      extensionClients.delete(ws);
+    } else {
+      console.log('❌ Canvas client disconnected');
+      clients.delete(ws);
+    }
   });
 
   ws.on('error', (error) => {
     console.error('WebSocket error:', error);
     clients.delete(ws);
+    extensionClients.delete(ws);
   });
 });
 
-// Broadcast to all connected clients
+// Handle WebSocket messages
+function handleWebSocketMessage(ws, message) {
+  const { type } = message;
+
+  switch (type) {
+    case 'extension-connected':
+      // Mark this client as extension
+      ws.isExtension = true;
+      extensionClients.add(ws);
+      clients.delete(ws); // Remove from canvas clients
+      console.log('🔌 Extension client registered');
+
+      ws.send(JSON.stringify({
+        type: 'extension-registered',
+        message: 'Extension successfully registered',
+        timestamp: Date.now()
+      }));
+      break;
+
+    case 'command-result':
+      // Handle command result from extension
+      handleCommandResult(message);
+      break;
+
+    case 'activity-tracked':
+      // Store activity tracking data
+      handleActivityTracked(message);
+      break;
+
+    default:
+      console.log('Unknown message type:', type);
+  }
+}
+
+// Handle command result from extension
+function handleCommandResult(message) {
+  const { commandId, success, result, error } = message;
+
+  console.log(`📥 Command result received: ${commandId} - ${success ? 'Success' : 'Failed'}`);
+
+  // Resolve pending command if exists
+  const pending = pendingCommands.get(commandId);
+  if (pending) {
+    clearTimeout(pending.timeout);
+
+    if (success) {
+      pending.resolve({ success: true, result });
+    } else {
+      pending.reject(new Error(error || 'Command failed'));
+    }
+
+    pendingCommands.delete(commandId);
+  }
+
+  // Broadcast result to canvas clients
+  broadcast({
+    type: 'extension-command-result',
+    commandId,
+    success,
+    result,
+    error,
+    timestamp: Date.now()
+  });
+}
+
+// Handle activity tracking from extension
+function handleActivityTracked(message) {
+  const { activity, timestamp } = message;
+
+  console.log(`📊 Activity tracked: ${activity.type}`);
+
+  // Add to memory log
+  activityLog.push({
+    ...activity,
+    timestamp: timestamp || Date.now()
+  });
+
+  // Keep only last 1000 activities in memory
+  if (activityLog.length > 1000) {
+    activityLog.shift();
+  }
+
+  // Persist to file (async, non-blocking)
+  saveActivityLog();
+
+  // Broadcast to canvas for real-time display
+  broadcast({
+    type: 'extension-activity',
+    activity,
+    timestamp: timestamp || Date.now()
+  });
+}
+
+// Save activity log to file
+function saveActivityLog() {
+  const outputDir = path.join(__dirname, '..', 'output');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+
+  fs.writeFile(activityLogPath, JSON.stringify(activityLog, null, 2), (err) => {
+    if (err) {
+      console.error('Failed to save activity log:', err);
+    }
+  });
+}
+
+// Broadcast to all connected clients (canvas only)
 function broadcast(data) {
   const message = JSON.stringify(data);
   clients.forEach((client) => {
-    if (client.readyState === 1) { // 1 = OPEN
+    if (!client.isExtension && client.readyState === 1) { // 1 = OPEN
+      client.send(message);
+    }
+  });
+}
+
+// Send to extension clients only
+function sendToExtension(data) {
+  const message = JSON.stringify(data);
+  extensionClients.forEach((client) => {
+    if (client.readyState === 1) {
       client.send(message);
     }
   });
@@ -150,12 +294,108 @@ app.post('/api/canvas/clear', (req, res) => {
   res.json({ success: true });
 });
 
+// API: Send command to extension
+app.post('/api/extension/command', async (req, res) => {
+  const command = {
+    id: `ext-cmd-${++commandIdCounter}-${Date.now()}`,
+    timestamp: Date.now(),
+    ...req.body
+  };
+
+  console.log('📤 Sending command to extension:', command.type);
+
+  // Check if extension is connected
+  if (extensionClients.size === 0) {
+    return res.status(503).json({
+      success: false,
+      error: 'No extension connected'
+    });
+  }
+
+  // Send command to extension
+  sendToExtension(command);
+
+  // Create promise that resolves when extension responds
+  const timeout = 30000; // 30 second timeout
+  const promise = new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      pendingCommands.delete(command.id);
+      reject(new Error('Command timeout'));
+    }, timeout);
+
+    pendingCommands.set(command.id, {
+      resolve,
+      reject,
+      timeout: timeoutId
+    });
+  });
+
+  try {
+    const result = await promise;
+    res.json({
+      success: true,
+      commandId: command.id,
+      result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      commandId: command.id,
+      error: error.message
+    });
+  }
+});
+
+// API: Get extension status
+app.get('/api/extension/status', (req, res) => {
+  res.json({
+    connected: extensionClients.size > 0,
+    clients: extensionClients.size,
+    pendingCommands: pendingCommands.size,
+    activitiesTracked: activityLog.length,
+    timestamp: Date.now()
+  });
+});
+
+// API: Get activity log
+app.get('/api/extension/activities', (req, res) => {
+  const { limit = 100, offset = 0 } = req.query;
+
+  const start = parseInt(offset);
+  const end = start + parseInt(limit);
+
+  res.json({
+    activities: activityLog.slice(start, end),
+    total: activityLog.length,
+    limit: parseInt(limit),
+    offset: start
+  });
+});
+
+// API: Clear activity log
+app.post('/api/extension/activities/clear', (req, res) => {
+  activityLog.length = 0;
+
+  // Clear file
+  fs.writeFile(activityLogPath, JSON.stringify([], null, 2), (err) => {
+    if (err) {
+      console.error('Failed to clear activity log:', err);
+      return res.status(500).json({ error: 'Failed to clear activity log' });
+    }
+
+    res.json({ success: true, message: 'Activity log cleared' });
+  });
+});
+
 // API: Get server status
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'running',
     clients: clients.size,
+    extensionClients: extensionClients.size,
     commandsQueued: commandsQueue.length,
+    pendingCommands: pendingCommands.size,
+    activitiesTracked: activityLog.length,
     uptime: process.uptime(),
     timestamp: Date.now()
   });
@@ -480,6 +720,18 @@ app.get('/health', (req, res) => {
   res.json({ status: 'healthy' });
 });
 
+// Load activity log on startup
+if (fs.existsSync(activityLogPath)) {
+  try {
+    const data = fs.readFileSync(activityLogPath, 'utf-8');
+    const loaded = JSON.parse(data);
+    activityLog.push(...loaded);
+    console.log(`📊 Loaded ${activityLog.length} activities from log`);
+  } catch (error) {
+    console.error('Failed to load activity log:', error);
+  }
+}
+
 // Start server
 server.listen(PORT, () => {
   console.log(`
@@ -496,6 +748,12 @@ server.listen(PORT, () => {
 ║  GET  /api/canvas/commands       - Poll commands (legacy)   ║
 ║  POST /api/canvas/clear          - Clear canvas             ║
 ║                                                              ║
+║  Extension API:                                              ║
+║  POST /api/extension/command     - Send command to extension║
+║  GET  /api/extension/status      - Extension status         ║
+║  GET  /api/extension/activities  - Get activity log         ║
+║  POST /api/extension/activities/clear - Clear activity log  ║
+║                                                              ║
 ║  Workflow Management:                                        ║
 ║  POST /api/workflow/save         - Save workflow            ║
 ║  GET  /api/workflows             - List all workflows       ║
@@ -509,6 +767,9 @@ server.listen(PORT, () => {
 ║                                                              ║
 ║  Features:                                                   ║
 ║  ✅ WebSocket real-time updates                              ║
+║  ✅ Extension client tracking                                ║
+║  ✅ Command result handling                                  ║
+║  ✅ Activity tracking & logging                              ║
 ║  ✅ Virtual environment Python support                       ║
 ║  ✅ Contextual workflow naming                               ║
 ║  ✅ Workflow execution tracking                              ║

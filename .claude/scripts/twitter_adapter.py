@@ -2,15 +2,19 @@
 """
 Twitter/X Adapter for 100X Outreach System
 
-Provides Twitter automation actions using Browser-Use MCP.
-Claude uses this adapter to generate Browser-Use tasks with rendered templates.
+Provides Twitter automation actions using WebSocket connection.
+Connects to ws://localhost:3000/ws for platform-specific actions.
 """
 
 import json
+import asyncio
+import websockets
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
@@ -41,7 +45,7 @@ class TwitterAction:
 
 class TwitterAdapter:
     """
-    Twitter automation adapter for Browser-Use MCP.
+    Twitter automation adapter using WebSocket connection.
 
     Supported Actions:
     - follow: Follow a user
@@ -85,15 +89,64 @@ class TwitterAdapter:
         }
     }
 
-    def __init__(self, data_dir: str = "."):
+    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3000/ws'):
         self.data_dir = Path(data_dir)
+        self.ws_url = ws_url
+        self.ws = None
+        self.timeout = 30
         self.rate_limiter = RateLimiter() if RateLimiter else None
         self.template_loader = TemplateLoader() if TemplateLoader else None
         self.team_manager = TeamManager() if TeamManager else None
+        self._executor = ThreadPoolExecutor(max_workers=1)
 
-    def generate_task(self, action: TwitterAction, user_id: str = "default") -> Dict:
-        """Generate a Browser-Use task for the given Twitter action."""
+    async def _connect(self):
+        """Establish WebSocket connection"""
+        if self.ws is None or self.ws.closed:
+            self.ws = await websockets.connect(self.ws_url)
 
+    async def _send_action(self, action_type: str, payload: Dict) -> Dict:
+        """Send action via WebSocket and wait for response"""
+        try:
+            await self._connect()
+
+            command = {
+                "type": "twitter-action",
+                "payload": {
+                    "type": action_type,
+                    **payload
+                }
+            }
+
+            await self.ws.send(json.dumps(command))
+
+            # Wait for response with timeout
+            response = await asyncio.wait_for(
+                self.ws.recv(),
+                timeout=self.timeout
+            )
+
+            return json.loads(response)
+        except asyncio.TimeoutError:
+            return {
+                'success': False,
+                'error': f'WebSocket timeout after {self.timeout}s'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def execute_action(self, action: TwitterAction, user_id: str = "default") -> Dict:
+        """
+        Execute Twitter action via WebSocket (synchronous wrapper).
+
+        Returns:
+        - success: Whether action succeeded
+        - message: Rendered message if applicable
+        - error: Error message if failed
+        - data: Response data from server
+        """
         # Check rate limits
         if self.rate_limiter:
             can_proceed, reason, wait_seconds = self.rate_limiter.can_proceed(
@@ -101,16 +154,11 @@ class TwitterAdapter:
             )
             if not can_proceed:
                 return {
-                    'task': None,
+                    'success': False,
                     'can_proceed': False,
                     'reason': reason,
                     'wait_seconds': wait_seconds
                 }
-
-        # Get browser profile
-        profile_id = None
-        if self.team_manager:
-            profile_id = self.team_manager.get_browser_profile(user_id, 'twitter')
 
         # Render message template
         message = action.message
@@ -122,123 +170,59 @@ class TwitterAdapter:
             result = self.template_loader.render_by_path(action.template_path, template_vars)
             message = result.get('content', message)
 
-        # Generate browser task
-        task = self._generate_browser_task(action, message)
-
-        return {
-            'task': task,
-            'max_steps': action.max_steps or self.ACTIONS.get(action.action_type, {}).get('max_steps', 10),
-            'profile_id': profile_id,
-            'can_proceed': True,
-            'message': message
+        # Build payload
+        handle = action.target_handle.lstrip('@')
+        payload = {
+            'target_handle': handle,
+            'target_name': action.target_name
         }
 
-    def _generate_browser_task(self, action: TwitterAction, message: str = None) -> str:
-        """Generate Browser-Use task description."""
+        if message:
+            payload['message'] = message
+        if action.tweet_url:
+            payload['tweet_url'] = action.tweet_url
+        if action.target_url:
+            payload['target_url'] = action.target_url
 
-        handle = action.target_handle.lstrip('@')
-        profile_url = action.target_url or f"https://x.com/{handle}"
+        # Execute via WebSocket
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                self._send_action(action.action_type, payload)
+            )
 
-        if action.action_type == 'follow':
-            return f"""Follow {action.target_name} ({action.target_handle}) on Twitter/X.
+            # Record action
+            if result.get('success'):
+                self.record_action(user_id, action, True, result.get('data'))
+            else:
+                self.record_action(user_id, action, False, result.get('error'))
 
-Steps:
-1. Navigate to {profile_url}
-2. Wait for the profile page to load completely
-3. Look for the "Follow" button
-4. Click the "Follow" button
-5. Verify the button changes to "Following"
+            result['message'] = message
+            return result
+        finally:
+            loop.close()
 
-Success: The Follow button now shows "Following" state."""
+    def generate_task(self, action: TwitterAction, user_id: str = "default") -> Dict:
+        """Legacy method for compatibility. Now executes via WebSocket."""
+        return self.execute_action(action, user_id)
 
-        elif action.action_type == 'like_tweet':
-            tweet_url = action.tweet_url or profile_url
-            return f"""Like a tweet from {action.target_name} ({action.target_handle}).
+    async def close(self):
+        """Close WebSocket connection"""
+        if self.ws and not self.ws.closed:
+            await self.ws.close()
+        if self._executor:
+            self._executor.shutdown(wait=False)
 
-Steps:
-1. Navigate to {tweet_url}
-2. If this is a profile URL, scroll to find a recent tweet
-3. Find the heart/like icon under the tweet
-4. Click the like button
-5. Verify the heart turns red/filled
-
-Success: The like button is now filled/red."""
-
-        elif action.action_type == 'retweet':
-            tweet_url = action.tweet_url or profile_url
-            return f"""Retweet a tweet from {action.target_name} ({action.target_handle}).
-
-Steps:
-1. Navigate to {tweet_url}
-2. If this is a profile URL, scroll to find a recent tweet worth retweeting
-3. Click the retweet icon (two arrows)
-4. Select "Retweet" (not Quote Tweet)
-5. Confirm the retweet
-
-Success: The retweet icon turns green indicating it's been retweeted."""
-
-        elif action.action_type == 'reply':
-            tweet_url = action.tweet_url or profile_url
-            reply_text = message or f"Great point, {action.target_handle}!"
-            # Ensure under 280 chars
-            if len(reply_text) > 280:
-                reply_text = reply_text[:277] + "..."
-
-            return f"""Reply to a tweet from {action.target_name} ({action.target_handle}).
-
-Tweet URL: {tweet_url}
-Reply text: "{reply_text}"
-
-Steps:
-1. Navigate to {tweet_url}
-2. If this is a profile, find a recent tweet to reply to
-3. Click the reply/comment icon under the tweet
-4. In the reply box, type: "{reply_text}"
-5. Click the "Reply" button to post
-
-Success: Your reply is posted and visible in the thread."""
-
-        elif action.action_type == 'dm':
-            dm_text = message or f"Hey {action.target_name.split()[0] if action.target_name else 'there'}! I've been following your content and wanted to connect."
-            # DMs can be longer but keep reasonable
-            if len(dm_text) > 1000:
-                dm_text = dm_text[:997] + "..."
-
-            return f"""Send a direct message to {action.target_name} ({action.target_handle}) on Twitter/X.
-
-Message: "{dm_text}"
-
-Steps:
-1. Navigate to {profile_url}
-2. Click the "Message" or envelope icon on their profile
-3. If prompted about message requests, continue
-4. In the message input field, type: "{dm_text}"
-5. Click the Send button (arrow icon)
-
-Success: Message appears in the conversation thread as sent."""
-
-        elif action.action_type == 'quote_tweet':
-            tweet_url = action.tweet_url or profile_url
-            quote_text = message or "This 👇"
-            if len(quote_text) > 280:
-                quote_text = quote_text[:277] + "..."
-
-            return f"""Quote tweet from {action.target_name} ({action.target_handle}).
-
-Tweet URL: {tweet_url}
-Your comment: "{quote_text}"
-
-Steps:
-1. Navigate to {tweet_url}
-2. Click the retweet icon (two arrows)
-3. Select "Quote Tweet" option
-4. In the text field, type: "{quote_text}"
-5. Click "Tweet" to post
-
-Success: Your quote tweet is posted with your comment above the original tweet."""
-
-        else:
-            return f"Unknown Twitter action: {action.action_type}"
+    def __del__(self):
+        """Cleanup on object deletion"""
+        if self.ws and not self.ws.closed:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self.close())
+            finally:
+                loop.close()
 
     def record_action(self, user_id: str, action: TwitterAction, success: bool, details: str = None):
         """Record action for rate limiting."""

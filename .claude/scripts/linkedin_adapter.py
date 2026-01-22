@@ -2,18 +2,21 @@
 """
 LinkedIn Adapter for 100X Outreach System
 
-Provides LinkedIn automation actions using Browser-Use MCP.
+Provides LinkedIn automation actions using WebSocket connection.
 All actions are executed through authenticated browser profiles.
 
-This adapter generates Browser-Use task descriptions that Claude
-will execute using the mcp__browser-use__browser_task tool.
+This adapter connects to ws://localhost:3000/ws and sends platform-specific actions.
 """
 
 import json
+import asyncio
+import websockets
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
+from concurrent.futures import ThreadPoolExecutor
 
 # Import local modules
 import sys
@@ -44,7 +47,7 @@ class LinkedInAction:
 
 class LinkedInAdapter:
     """
-    LinkedIn automation adapter using Browser-Use MCP.
+    LinkedIn automation adapter using WebSocket connection.
 
     Supported Actions:
     - view_profile: Visit a LinkedIn profile
@@ -88,43 +91,76 @@ class LinkedInAdapter:
         }
     }
 
-    def __init__(self, data_dir: str = "."):
+    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3000/ws'):
         self.data_dir = Path(data_dir)
+        self.ws_url = ws_url
+        self.ws = None
+        self.timeout = 30  # 30 seconds timeout
         self.rate_limiter = RateLimiter() if RateLimiter else None
         self.template_loader = TemplateLoader() if TemplateLoader else None
         self.team_manager = TeamManager() if TeamManager else None
+        self._executor = ThreadPoolExecutor(max_workers=1)
 
-    def generate_task(self, action: LinkedInAction, user_id: str = "default") -> Dict:
+    async def _connect(self):
+        """Establish WebSocket connection"""
+        if self.ws is None or self.ws.closed:
+            self.ws = await websockets.connect(self.ws_url)
+
+    async def _send_action(self, action_type: str, payload: Dict) -> Dict:
+        """Send action via WebSocket and wait for response"""
+        try:
+            await self._connect()
+
+            command = {
+                "type": "linkedin-action",
+                "payload": {
+                    "type": action_type,
+                    **payload
+                }
+            }
+
+            await self.ws.send(json.dumps(command))
+
+            # Wait for response with timeout
+            response = await asyncio.wait_for(
+                self.ws.recv(),
+                timeout=self.timeout
+            )
+
+            return json.loads(response)
+        except asyncio.TimeoutError:
+            return {
+                'success': False,
+                'error': f'WebSocket timeout after {self.timeout}s'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def execute_action(self, action: LinkedInAction, user_id: str = "default") -> Dict:
         """
-        Generate a Browser-Use task for the given action.
+        Execute LinkedIn action via WebSocket (synchronous wrapper).
 
         Returns a dict with:
-        - task: The browser task description
-        - max_steps: Recommended max steps
-        - profile_id: Browser profile to use (if available)
-        - can_proceed: Whether rate limits allow this action
-        - wait_seconds: How long to wait if rate limited
+        - success: Whether action succeeded
+        - message: Rendered message if applicable
+        - error: Error message if failed
+        - data: Response data from server
         """
         # Check rate limits
-        can_proceed = True
-        wait_seconds = 0
-
         if self.rate_limiter:
             can_proceed, reason, wait_seconds = self.rate_limiter.can_proceed(
                 user_id, 'linkedin', action.action_type
             )
             if not can_proceed:
                 return {
-                    'task': None,
+                    'success': False,
                     'can_proceed': False,
                     'reason': reason,
                     'wait_seconds': wait_seconds
                 }
-
-        # Get browser profile if team manager available
-        profile_id = None
-        if self.team_manager:
-            profile_id = self.team_manager.get_browser_profile(user_id, 'linkedin')
 
         # Render message template if provided
         message = action.message
@@ -135,112 +171,57 @@ class LinkedInAdapter:
             result = self.template_loader.render_by_path(action.template_path, template_vars)
             message = result.get('content', message)
 
-        # Generate browser task based on action type
-        task = self._generate_browser_task(action, message)
-
-        return {
-            'task': task,
-            'max_steps': action.max_steps or self.ACTIONS.get(action.action_type, {}).get('max_steps', 10),
-            'profile_id': profile_id,
-            'can_proceed': True,
-            'message': message
+        # Build payload based on action type
+        payload = {
+            'profile_url': action.target_url,
+            'target_name': action.target_name
         }
 
-    def _generate_browser_task(self, action: LinkedInAction, message: str = None) -> str:
-        """Generate the browser task description for Browser-Use MCP"""
+        if message:
+            payload['message'] = message
 
-        if action.action_type == 'view_profile':
-            return f"""Go to LinkedIn profile: {action.target_url}
+        # Execute via WebSocket
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                self._send_action(action.action_type, payload)
+            )
 
-Steps:
-1. Navigate to {action.target_url}
-2. Wait for the profile page to fully load
-3. Scroll down slightly to view the profile summary
-4. Take note of their current role and company
+            # Record action for rate limiting
+            if result.get('success'):
+                self.record_action(user_id, action, True, result.get('data'))
+            else:
+                self.record_action(user_id, action, False, result.get('error'))
 
-Success: The profile page is displayed with the person's information visible."""
+            result['message'] = message
+            return result
+        finally:
+            loop.close()
 
-        elif action.action_type == 'like_post':
-            return f"""Like a recent post from {action.target_name} on LinkedIn.
+    def generate_task(self, action: LinkedInAction, user_id: str = "default") -> Dict:
+        """
+        Legacy method for compatibility.
+        Now returns WebSocket execution result instead of browser task.
+        """
+        return self.execute_action(action, user_id)
 
-Steps:
-1. Go to {action.target_url}
-2. Scroll down to find their recent posts/activity section
-3. Find a recent post (within the last week)
-4. Click the "Like" button on the post
-5. Confirm the like was registered (button changes state)
+    async def close(self):
+        """Close WebSocket connection"""
+        if self.ws and not self.ws.closed:
+            await self.ws.close()
+        if self._executor:
+            self._executor.shutdown(wait=False)
 
-Success: A post has been liked (the Like button shows as active/filled)."""
-
-        elif action.action_type == 'comment':
-            comment_text = message or "Great insights! Thanks for sharing."
-            return f"""Comment on a post from {action.target_name} on LinkedIn.
-
-Comment text: "{comment_text}"
-
-Steps:
-1. Go to {action.target_url}
-2. Find their recent posts/activity section
-3. Click on a recent post to expand it
-4. Click the "Comment" button
-5. Type the comment: "{comment_text}"
-6. Click "Post" to submit the comment
-
-Success: The comment is posted and visible under the post."""
-
-        elif action.action_type == 'connect':
-            note = message or f"Hi {action.target_name.split()[0] if action.target_name else 'there'}, I'd love to connect!"
-            # Truncate to 300 chars for connection notes
-            if len(note) > 300:
-                note = note[:297] + "..."
-
-            return f"""Send a LinkedIn connection request to {action.target_name}.
-
-Profile URL: {action.target_url}
-Connection note: "{note}"
-
-Steps:
-1. Navigate to {action.target_url}
-2. Wait for the profile to load completely
-3. Look for the "Connect" button (may be under "More" dropdown)
-4. Click "Connect"
-5. If prompted, click "Add a note"
-6. Enter the connection note: "{note}"
-7. Click "Send" or "Send invitation"
-
-Success: Connection request sent (confirmation message appears or button changes to "Pending")."""
-
-        elif action.action_type == 'message':
-            msg = message or f"Hi {action.target_name.split()[0] if action.target_name else 'there'}, I wanted to reach out..."
-            return f"""Send a LinkedIn direct message to {action.target_name}.
-
-Profile URL: {action.target_url}
-Message: "{msg}"
-
-Steps:
-1. Navigate to {action.target_url}
-2. Click the "Message" button on their profile
-3. Wait for the message dialog to open
-4. Type the message: "{msg}"
-5. Click "Send"
-
-Success: Message sent (appears in the chat thread)."""
-
-        elif action.action_type == 'follow':
-            return f"""Follow {action.target_name} on LinkedIn.
-
-Profile URL: {action.target_url}
-
-Steps:
-1. Navigate to {action.target_url}
-2. Look for the "Follow" button (may be under "More" dropdown)
-3. Click "Follow"
-4. Confirm the follow was successful
-
-Success: Now following (button changes to "Following" or similar)."""
-
-        else:
-            return f"Unknown action type: {action.action_type}"
+    def __del__(self):
+        """Cleanup on object deletion"""
+        if self.ws and not self.ws.closed:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self.close())
+            finally:
+                loop.close()
 
     def record_action(self, user_id: str, action: LinkedInAction, success: bool, details: str = None):
         """Record an action for rate limiting"""

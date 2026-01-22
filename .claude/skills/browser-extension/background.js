@@ -130,6 +130,10 @@ async function handleWebSocketMessage(event) {
         await executeTwitterAction(message.payload);
         break;
 
+      case 'google-action':
+        await executeGoogleAction(message.payload);
+        break;
+
       case 'ping':
         sendToWebSocket({ type: 'pong', timestamp: Date.now() });
         break;
@@ -513,6 +517,26 @@ async function executeTwitterAction(action) {
   });
 }
 
+/**
+ * Execute Google action
+ */
+async function executeGoogleAction(action) {
+  console.log('[ClaudeKit Browser] Google action:', action.type);
+
+  const { default: GoogleHandler } = await import('./handlers/google.js');
+  const handler = new GoogleHandler();
+
+  const result = await handler.execute(action);
+
+  sendToWebSocket({
+    type: 'action-result',
+    platform: 'google',
+    actionType: action.type,
+    success: true,
+    result
+  });
+}
+
 // Listen for messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log('[ClaudeKit Browser] Message from content script:', message.type);
@@ -530,6 +554,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'GET_CONNECTION_STATUS':
       sendResponse({ connected: isConnected });
+      break;
+
+    case 'RECONNECT':
+      // Manual reconnect from popup
+      console.log('[ClaudeKit Browser] Manual reconnect requested');
+      if (ws) {
+        ws.close();
+      }
+      reconnectAttempts = 0;
+      connectToWebSocket();
+      sendResponse({ success: true });
       break;
 
     default:

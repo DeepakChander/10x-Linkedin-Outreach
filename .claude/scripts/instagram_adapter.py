@@ -2,15 +2,19 @@
 """
 Instagram Adapter for 100X Outreach System
 
-Provides Instagram automation actions using Browser-Use MCP.
-Claude uses this adapter to generate Browser-Use tasks with rendered templates.
+Provides Instagram automation actions using WebSocket connection.
+Connects to ws://localhost:3000/ws for platform-specific actions.
 """
 
 import json
+import asyncio
+import websockets
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
@@ -41,7 +45,7 @@ class InstagramAction:
 
 class InstagramAdapter:
     """
-    Instagram automation adapter for Browser-Use MCP.
+    Instagram automation adapter using WebSocket connection.
 
     Supported Actions:
     - follow: Follow a user
@@ -79,15 +83,64 @@ class InstagramAdapter:
         }
     }
 
-    def __init__(self, data_dir: str = "."):
+    def __init__(self, data_dir: str = ".", ws_url: str = 'ws://localhost:3000/ws'):
         self.data_dir = Path(data_dir)
+        self.ws_url = ws_url
+        self.ws = None
+        self.timeout = 30
         self.rate_limiter = RateLimiter() if RateLimiter else None
         self.template_loader = TemplateLoader() if TemplateLoader else None
         self.team_manager = TeamManager() if TeamManager else None
+        self._executor = ThreadPoolExecutor(max_workers=1)
 
-    def generate_task(self, action: InstagramAction, user_id: str = "default") -> Dict:
-        """Generate a Browser-Use task for the given Instagram action."""
+    async def _connect(self):
+        """Establish WebSocket connection"""
+        if self.ws is None or self.ws.closed:
+            self.ws = await websockets.connect(self.ws_url)
 
+    async def _send_action(self, action_type: str, payload: Dict) -> Dict:
+        """Send action via WebSocket and wait for response"""
+        try:
+            await self._connect()
+
+            command = {
+                "type": "instagram-action",
+                "payload": {
+                    "type": action_type,
+                    **payload
+                }
+            }
+
+            await self.ws.send(json.dumps(command))
+
+            # Wait for response with timeout
+            response = await asyncio.wait_for(
+                self.ws.recv(),
+                timeout=self.timeout
+            )
+
+            return json.loads(response)
+        except asyncio.TimeoutError:
+            return {
+                'success': False,
+                'error': f'WebSocket timeout after {self.timeout}s'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    def execute_action(self, action: InstagramAction, user_id: str = "default") -> Dict:
+        """
+        Execute Instagram action via WebSocket (synchronous wrapper).
+
+        Returns:
+        - success: Whether action succeeded
+        - message: Rendered message if applicable
+        - error: Error message if failed
+        - data: Response data from server
+        """
         # Check rate limits
         if self.rate_limiter:
             can_proceed, reason, wait_seconds = self.rate_limiter.can_proceed(
@@ -95,16 +148,11 @@ class InstagramAdapter:
             )
             if not can_proceed:
                 return {
-                    'task': None,
+                    'success': False,
                     'can_proceed': False,
                     'reason': reason,
                     'wait_seconds': wait_seconds
                 }
-
-        # Get browser profile
-        profile_id = None
-        if self.team_manager:
-            profile_id = self.team_manager.get_browser_profile(user_id, 'instagram')
 
         # Render message template
         message = action.message
@@ -116,137 +164,59 @@ class InstagramAdapter:
             result = self.template_loader.render_by_path(action.template_path, template_vars)
             message = result.get('content', message)
 
-        # Generate browser task
-        task = self._generate_browser_task(action, message)
-
-        return {
-            'task': task,
-            'max_steps': action.max_steps or self.ACTIONS.get(action.action_type, {}).get('max_steps', 10),
-            'profile_id': profile_id,
-            'can_proceed': True,
-            'message': message
+        # Build payload
+        handle = action.target_handle.lstrip('@')
+        payload = {
+            'target_handle': handle,
+            'target_name': action.target_name
         }
 
-    def _generate_browser_task(self, action: InstagramAction, message: str = None) -> str:
-        """Generate Browser-Use task description."""
+        if message:
+            payload['message'] = message
+        if action.post_url:
+            payload['post_url'] = action.post_url
+        if action.target_url:
+            payload['target_url'] = action.target_url
 
-        handle = action.target_handle.lstrip('@')
-        profile_url = action.target_url or f"https://www.instagram.com/{handle}/"
+        # Execute via WebSocket
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            result = loop.run_until_complete(
+                self._send_action(action.action_type, payload)
+            )
 
-        if action.action_type == 'follow':
-            return f"""Follow {action.target_name} ({action.target_handle}) on Instagram.
-
-Steps:
-1. Navigate to {profile_url}
-2. Wait for the profile page to load completely
-3. Look for the "Follow" button (blue button)
-4. Click the "Follow" button
-5. Verify the button changes to "Following" (gray)
-
-Success: The button now shows "Following" instead of "Follow"."""
-
-        elif action.action_type == 'like_post':
-            if action.post_url:
-                return f"""Like a specific Instagram post from {action.target_name}.
-
-Post URL: {action.post_url}
-
-Steps:
-1. Navigate to {action.post_url}
-2. Wait for the post to load
-3. Find the heart icon below the image/video
-4. Click the heart icon to like
-5. Verify the heart turns red/filled
-
-Success: The heart icon is now red/filled."""
+            # Record action
+            if result.get('success'):
+                self.record_action(user_id, action, True, result.get('data'))
             else:
-                return f"""Like a recent post from {action.target_name} ({action.target_handle}).
+                self.record_action(user_id, action, False, result.get('error'))
 
-Steps:
-1. Navigate to {profile_url}
-2. Wait for profile and posts grid to load
-3. Click on the most recent post (top-left of grid)
-4. Wait for the post to open in a modal/page
-5. Double-click the image OR click the heart icon to like
-6. Verify the heart turns red
+            result['message'] = message
+            return result
+        finally:
+            loop.close()
 
-Success: The heart icon is red indicating the post is liked."""
+    def generate_task(self, action: InstagramAction, user_id: str = "default") -> Dict:
+        """Legacy method for compatibility. Now executes via WebSocket."""
+        return self.execute_action(action, user_id)
 
-        elif action.action_type == 'comment':
-            comment_text = message or "Amazing! 🔥"
-            if len(comment_text) > 2200:
-                comment_text = comment_text[:2197] + "..."
+    async def close(self):
+        """Close WebSocket connection"""
+        if self.ws and not self.ws.closed:
+            await self.ws.close()
+        if self._executor:
+            self._executor.shutdown(wait=False)
 
-            if action.post_url:
-                return f"""Comment on an Instagram post from {action.target_name}.
-
-Post URL: {action.post_url}
-Comment: "{comment_text}"
-
-Steps:
-1. Navigate to {action.post_url}
-2. Wait for the post to load
-3. Click the comment icon (speech bubble) or the comment input field
-4. Type the comment: "{comment_text}"
-5. Press Enter or click "Post" to submit
-6. Verify the comment appears
-
-Success: Your comment is visible under the post."""
-            else:
-                return f"""Comment on a recent post from {action.target_name} ({action.target_handle}).
-
-Comment: "{comment_text}"
-
-Steps:
-1. Navigate to {profile_url}
-2. Click on the most recent post
-3. Click the comment icon or comment input field
-4. Type: "{comment_text}"
-5. Press Enter or click "Post"
-6. Verify your comment appears
-
-Success: Your comment is visible under the post."""
-
-        elif action.action_type == 'dm':
-            dm_text = message or f"Hey {action.target_name.split()[0] if action.target_name else 'there'}! 👋 Love your content!"
-            if len(dm_text) > 1000:
-                dm_text = dm_text[:997] + "..."
-
-            return f"""Send a direct message to {action.target_name} ({action.target_handle}) on Instagram.
-
-Message: "{dm_text}"
-
-Steps:
-1. Navigate to {profile_url}
-2. Click the "Message" button on their profile
-   - If no Message button, click the three dots menu and select "Send Message"
-3. Wait for the message dialog to open
-4. In the message input field, type: "{dm_text}"
-5. Click Send or press Enter
-
-Success: Message appears in the conversation as sent."""
-
-        elif action.action_type == 'story_reply':
-            reply_text = message or "This is amazing! 🔥"
-            if len(reply_text) > 1000:
-                reply_text = reply_text[:997] + "..."
-
-            return f"""Reply to {action.target_name}'s ({action.target_handle}) Instagram story.
-
-Reply: "{reply_text}"
-
-Steps:
-1. Navigate to {profile_url}
-2. Click on their profile picture (has colorful ring if story is active)
-3. Wait for the story to load
-4. Click the "Send message" or reply input at the bottom
-5. Type: "{reply_text}"
-6. Press Send
-
-Success: Reply sent (appears as a DM to them)."""
-
-        else:
-            return f"Unknown Instagram action: {action.action_type}"
+    def __del__(self):
+        """Cleanup on object deletion"""
+        if self.ws and not self.ws.closed:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(self.close())
+            finally:
+                loop.close()
 
     def record_action(self, user_id: str, action: InstagramAction, success: bool, details: str = None):
         """Record action for rate limiting."""
