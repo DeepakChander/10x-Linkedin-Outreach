@@ -2,13 +2,14 @@
 
 <div align="center">
 
-**Visual Workflow Canvas + Multi-Platform Outreach Automation for Claude Code**
+**Visual Workflow Canvas + Multi-Platform Outreach Automation + IT Operations Support for Claude Code**
 
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet?style=for-the-badge)](https://claude.ai/code)
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Platforms](https://img.shields.io/badge/Platforms-LinkedIn%20%7C%20Twitter%20%7C%20Instagram%20%7C%20Gmail-blue?style=for-the-badge)](#)
+[![IT Support](https://img.shields.io/badge/IT%20Support-Enterprise%20Ready-orange?style=for-the-badge)](#-it-operations-support)
 
-[Installation](#-one-line-installation) • [Quick Start](#-quick-start) • [Visual Canvas](#-visual-workflow-canvas) • [Commands](#-commands) • [Templates](#-templates)
+[Installation](#-one-line-installation) • [Quick Start](#-quick-start) • [Visual Canvas](#-visual-workflow-canvas) • [IT Support](#-it-operations-support) • [Commands](#-commands) • [Templates](#-templates)
 
 </div>
 
@@ -19,9 +20,10 @@
 **10x Outreach Skill** is a Claude Code skill that gives you:
 
 1. **TLDraw Canvas** - Official TLDraw SDK providing an infinite canvas for design and collaboration
-2. **13 Automation Skills** - LinkedIn, Twitter, Instagram, Gmail automation via ClaudeKit Browser Extension
+2. **13+ Automation Skills** - LinkedIn, Twitter, Instagram, Gmail automation via ClaudeKit Browser Extension
 3. **85+ Message Templates** - Professional, customizable templates for all platforms
 4. **Team Management** - Multiple team members with their own credentials
+5. **IT Operations Support** - Ticket management, SLA tracking, AI analysis, and enterprise features
 
 ---
 
@@ -357,14 +359,37 @@ INSTAGRAM_FOLLOWS_PER_DAY=30
 │   │   ├── App.tsx            # Clean TLDraw implementation
 │   │   ├── index.css          # Styles
 │   │   └── main.tsx           # Entry point
+│   ├── server.js              # WebSocket server with JWT auth
 │   └── package.json           # Dependencies (tldraw, react)
 │
 ├── .claude/                   # Claude Code Skill
-│   ├── skills/                # 13 skill definitions
+│   ├── skills/                # 13+ skill definitions
 │   ├── commands/              # Slash commands
 │   ├── scripts/               # Python automation
+│   │   ├── gmail_client.py         # Gmail API (threaded replies)
+│   │   ├── ticket_manager.py       # Ticket lifecycle management
+│   │   ├── sla_tracker.py          # SLA monitoring
+│   │   ├── ai_context_analyzer.py  # Claude AI email analysis
+│   │   ├── knowledge_base.py       # Semantic search KB
+│   │   ├── secure_credentials.py   # AES-256 encrypted storage
+│   │   ├── audit_logger.py         # Tamper-proof logging
+│   │   ├── rbac.py                 # Role-based access control
+│   │   ├── multi_tenant.py         # Multi-tenant isolation
+│   │   ├── webhook_api.py          # External integrations
+│   │   └── metrics_collector.py    # Dashboard metrics
 │   ├── templates/             # 85+ message templates
 │   └── workflows/             # Workflow definitions
+│
+├── tickets/                   # Ticket storage
+│   ├── active/                # Active tickets
+│   └── closed/                # Closed tickets
+│
+├── audit_logs/                # Tamper-proof audit logs
+├── knowledge_base/            # KB articles
+├── tenants/                   # Multi-tenant data
+├── webhooks/                  # Webhook configurations
+├── metrics/                   # Metrics snapshots
+├── sla/                       # SLA configurations
 │
 ├── output/                    # Runtime output
 │   └── workflows/             # Saved workflow JSONs
@@ -373,6 +398,74 @@ INSTAGRAM_FOLLOWS_PER_DAY=30
 ├── install.ps1                # Windows installer
 ├── CLAUDE.md                  # Claude Code instructions
 └── README.md                  # This file
+```
+
+---
+
+## 🏢 IT Operations Support
+
+**New in v3.0** - Complete IT Operations Support System with enterprise-grade features.
+
+### Core IT Features
+
+| Feature | Description |
+|---------|-------------|
+| **Ticket Management** | Full lifecycle: create, assign, update, resolve, close |
+| **SLA Tracking** | P1-P4 priorities with automatic escalation |
+| **AI Email Analysis** | Claude-powered intent detection, priority assessment |
+| **Knowledge Base** | Semantic search with response templates |
+| **Audit Logging** | Tamper-proof hash-chained logs |
+
+### Enterprise Features
+
+| Feature | Description |
+|---------|-------------|
+| **RBAC** | Role-based access control (Admin, Agent, Viewer) |
+| **Multi-Tenant** | Isolated configurations per organization |
+| **Webhooks** | External integrations with HMAC signing |
+| **Metrics** | Real-time dashboard with Prometheus export |
+| **Secure Credentials** | AES-256 encrypted storage |
+
+### SLA Definitions
+
+| Priority | Response Time | Resolution Time | Use Case |
+|----------|---------------|-----------------|----------|
+| **P1** | 1 hour | 4 hours | Critical - System down |
+| **P2** | 4 hours | 8 hours | High - Major impact |
+| **P3** | 8 hours | 2 days | Medium - Normal business |
+| **P4** | 24 hours | 7 days | Low - Minor issues |
+
+### IT Support Commands
+
+```bash
+# Ticket Management
+python .claude/scripts/ticket_manager.py --list
+python .claude/scripts/ticket_manager.py --create
+python .claude/scripts/ticket_manager.py --stats
+
+# SLA Tracking
+python .claude/scripts/sla_tracker.py --check-all
+python .claude/scripts/sla_tracker.py --at-risk
+python .claude/scripts/sla_tracker.py --report
+
+# AI Analysis
+python .claude/scripts/ai_context_analyzer.py --test
+
+# Knowledge Base
+python .claude/scripts/knowledge_base.py --search "password reset"
+python .claude/scripts/knowledge_base.py --add-sample
+```
+
+### New Environment Variables
+
+```env
+# Security (auto-generated on first run)
+CREDENTIAL_MASTER_KEY=<generated>
+AUDIT_SIGNING_KEY=<generated>
+JWT_SECRET=<set-for-production>
+
+# AI Analysis
+ANTHROPIC_API_KEY=your_anthropic_key
 ```
 
 ---

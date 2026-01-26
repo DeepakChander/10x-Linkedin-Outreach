@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +13,158 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
 const WS_PORT = process.env.WS_PORT || 3001;
+
+// JWT Configuration
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const JWT_EXPIRY = '24h';
+const AUTH_TIMEOUT_MS = 10000; // 10 seconds to authenticate
+
+// Simple JWT implementation (cross-platform, no external dependencies)
+const jwtUtils = {
+  // Base64URL encode
+  base64UrlEncode(str) {
+    return Buffer.from(str)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+  },
+
+  // Base64URL decode
+  base64UrlDecode(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    return Buffer.from(str, 'base64').toString();
+  },
+
+  // Sign JWT
+  sign(payload, secret, expiresIn = '24h') {
+    const header = { alg: 'HS256', typ: 'JWT' };
+
+    // Parse expiry
+    let expiryMs = 24 * 60 * 60 * 1000; // default 24h
+    if (typeof expiresIn === 'string') {
+      const match = expiresIn.match(/^(\d+)(h|m|s|d)$/);
+      if (match) {
+        const value = parseInt(match[1]);
+        const unit = match[2];
+        const multipliers = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
+        expiryMs = value * multipliers[unit];
+      }
+    }
+
+    const now = Date.now();
+    const tokenPayload = {
+      ...payload,
+      iat: Math.floor(now / 1000),
+      exp: Math.floor((now + expiryMs) / 1000)
+    };
+
+    const headerB64 = this.base64UrlEncode(JSON.stringify(header));
+    const payloadB64 = this.base64UrlEncode(JSON.stringify(tokenPayload));
+
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(`${headerB64}.${payloadB64}`)
+      .digest('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+
+    return `${headerB64}.${payloadB64}.${signature}`;
+  },
+
+  // Verify JWT
+  verify(token, secret) {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+
+      const [headerB64, payloadB64, signature] = parts;
+
+      // Verify signature
+      const expectedSig = crypto
+        .createHmac('sha256', secret)
+        .update(`${headerB64}.${payloadB64}`)
+        .digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+
+      if (signature !== expectedSig) return null;
+
+      // Decode payload
+      const payload = JSON.parse(this.base64UrlDecode(payloadB64));
+
+      // Check expiry
+      if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+        return null;
+      }
+
+      return payload;
+    } catch (e) {
+      return null;
+    }
+  }
+};
+
+// Token storage (for revocation)
+const revokedTokens = new Set();
+
+// Permission definitions
+const PERMISSIONS = {
+  canvas: ['canvas.view', 'canvas.edit', 'canvas.command'],
+  workflow: ['workflow.create', 'workflow.execute', 'workflow.view', 'workflow.delete'],
+  extension: ['extension.command', 'extension.view'],
+  admin: ['admin.users', 'admin.settings']
+};
+
+// Role permissions
+const ROLE_PERMISSIONS = {
+  admin: [...PERMISSIONS.canvas, ...PERMISSIONS.workflow, ...PERMISSIONS.extension, ...PERMISSIONS.admin],
+  agent: [...PERMISSIONS.canvas, ...PERMISSIONS.workflow, ...PERMISSIONS.extension],
+  viewer: ['canvas.view', 'workflow.view', 'extension.view']
+};
+
+// Auth middleware for HTTP routes
+function authMiddleware(requiredPermission = null) {
+  return (req, res, next) => {
+    // Get token from header
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // Allow unauthenticated access if no JWT_SECRET is set in env (development mode)
+      if (!process.env.JWT_SECRET) {
+        req.user = { role: 'admin', permissions: ROLE_PERMISSIONS.admin };
+        return next();
+      }
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    // Check if revoked
+    if (revokedTokens.has(token)) {
+      return res.status(401).json({ error: 'Token revoked' });
+    }
+
+    // Verify token
+    const payload = jwtUtils.verify(token, JWT_SECRET);
+    if (!payload) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    // Check permission if required
+    if (requiredPermission) {
+      const userPermissions = payload.permissions || ROLE_PERMISSIONS[payload.role] || [];
+      if (!userPermissions.includes(requiredPermission)) {
+        return res.status(403).json({ error: 'Permission denied' });
+      }
+    }
+
+    req.user = payload;
+    next();
+  };
+}
 
 // Middleware
 app.use(cors());
@@ -44,13 +197,38 @@ wss.on('connection', (ws) => {
   console.log('✅ Client connected via WebSocket');
   clients.add(ws);
 
-  // Track client type
+  // Track client type and auth status
   ws.isExtension = false;
+  ws.isAuthenticated = false;
+  ws.user = null;
+
+  // Auth timeout - require authentication within 10 seconds
+  // Only enforce if JWT_SECRET is set (production mode)
+  let authTimeout = null;
+  if (process.env.JWT_SECRET) {
+    authTimeout = setTimeout(() => {
+      if (!ws.isAuthenticated) {
+        console.log('⏰ Client auth timeout - disconnecting');
+        ws.send(JSON.stringify({
+          type: 'auth-timeout',
+          message: 'Authentication required within 10 seconds',
+          timestamp: Date.now()
+        }));
+        ws.close(4001, 'Authentication timeout');
+      }
+    }, AUTH_TIMEOUT_MS);
+  } else {
+    // Development mode - auto-authenticate
+    ws.isAuthenticated = true;
+    ws.user = { role: 'admin', permissions: ROLE_PERMISSIONS.admin };
+  }
 
   // Send welcome message
   ws.send(JSON.stringify({
     type: 'connected',
     message: 'Connected to 10x-Team Canvas Server',
+    authRequired: !!process.env.JWT_SECRET,
+    authTimeout: AUTH_TIMEOUT_MS,
     timestamp: Date.now()
   }));
 
@@ -85,6 +263,22 @@ wss.on('connection', (ws) => {
 function handleWebSocketMessage(ws, message) {
   const { type } = message;
 
+  // Handle authentication first
+  if (type === 'authenticate') {
+    handleAuthentication(ws, message);
+    return;
+  }
+
+  // Check if authenticated (skip for development mode)
+  if (process.env.JWT_SECRET && !ws.isAuthenticated && type !== 'extension-connected') {
+    ws.send(JSON.stringify({
+      type: 'auth-required',
+      message: 'Please authenticate first',
+      timestamp: Date.now()
+    }));
+    return;
+  }
+
   switch (type) {
     case 'extension-connected':
       // Mark this client as extension
@@ -113,6 +307,57 @@ function handleWebSocketMessage(ws, message) {
     default:
       console.log('Unknown message type:', type);
   }
+}
+
+// Handle WebSocket authentication
+function handleAuthentication(ws, message) {
+  const { token } = message;
+
+  if (!token) {
+    ws.send(JSON.stringify({
+      type: 'auth-failed',
+      error: 'No token provided',
+      timestamp: Date.now()
+    }));
+    return;
+  }
+
+  // Check if revoked
+  if (revokedTokens.has(token)) {
+    ws.send(JSON.stringify({
+      type: 'auth-failed',
+      error: 'Token revoked',
+      timestamp: Date.now()
+    }));
+    return;
+  }
+
+  // Verify token
+  const payload = jwtUtils.verify(token, JWT_SECRET);
+  if (!payload) {
+    ws.send(JSON.stringify({
+      type: 'auth-failed',
+      error: 'Invalid token',
+      timestamp: Date.now()
+    }));
+    return;
+  }
+
+  // Authentication successful
+  ws.isAuthenticated = true;
+  ws.user = payload;
+
+  console.log(`🔐 Client authenticated: ${payload.username || payload.userId}`);
+
+  ws.send(JSON.stringify({
+    type: 'auth-success',
+    user: {
+      userId: payload.userId,
+      username: payload.username,
+      role: payload.role
+    },
+    timestamp: Date.now()
+  }));
 }
 
 // Handle command result from extension
@@ -715,6 +960,113 @@ app.get('/api/workflow/latest', (req, res) => {
     console.error('Failed to read latest workflow:', error);
     res.status(500).json({ error: 'Failed to read workflow' });
   }
+});
+
+// ============================================
+// Authentication Endpoints
+// ============================================
+
+// API: Generate JWT token
+app.post('/api/auth/token', (req, res) => {
+  const { userId, username, role = 'agent', permissions } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: 'userId required' });
+  }
+
+  // Build token payload
+  const payload = {
+    userId,
+    username: username || userId,
+    role,
+    permissions: permissions || ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS.viewer
+  };
+
+  // Generate token
+  const token = jwtUtils.sign(payload, JWT_SECRET, JWT_EXPIRY);
+
+  console.log(`🔑 Token generated for user: ${username || userId} (${role})`);
+
+  res.json({
+    success: true,
+    token,
+    expiresIn: JWT_EXPIRY,
+    user: {
+      userId,
+      username: username || userId,
+      role,
+      permissions: payload.permissions
+    }
+  });
+});
+
+// API: Verify token
+app.post('/api/auth/verify', (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token required' });
+  }
+
+  // Check if revoked
+  if (revokedTokens.has(token)) {
+    return res.json({ valid: false, error: 'Token revoked' });
+  }
+
+  // Verify
+  const payload = jwtUtils.verify(token, JWT_SECRET);
+
+  if (payload) {
+    res.json({
+      valid: true,
+      user: {
+        userId: payload.userId,
+        username: payload.username,
+        role: payload.role,
+        permissions: payload.permissions
+      },
+      exp: payload.exp
+    });
+  } else {
+    res.json({ valid: false, error: 'Invalid or expired token' });
+  }
+});
+
+// API: Revoke token
+app.post('/api/auth/revoke', authMiddleware('admin.users'), (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: 'Token required' });
+  }
+
+  revokedTokens.add(token);
+
+  // Disconnect any WebSocket clients using this token
+  clients.forEach(client => {
+    if (client.token === token) {
+      client.send(JSON.stringify({
+        type: 'token-revoked',
+        message: 'Your token has been revoked',
+        timestamp: Date.now()
+      }));
+      client.close(4002, 'Token revoked');
+    }
+  });
+
+  console.log('🚫 Token revoked');
+
+  res.json({ success: true, message: 'Token revoked' });
+});
+
+// API: Get auth status
+app.get('/api/auth/status', (req, res) => {
+  res.json({
+    authEnabled: !!process.env.JWT_SECRET,
+    revokedTokenCount: revokedTokens.size,
+    authenticatedClients: Array.from(clients).filter(c => c.isAuthenticated).length,
+    timestamp: Date.now()
+  });
 });
 
 // Health check

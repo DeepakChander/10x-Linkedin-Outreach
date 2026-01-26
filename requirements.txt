@@ -61,3 +61,26 @@ playwright>=1.40.0
 # premailer>=3.10.0
 # beautifulsoup4>=4.12.0
 # html2text>=2020.1.16
+
+# =============================================================================
+# IT Operations Support - Security & Encryption
+# =============================================================================
+cryptography>=41.0.0
+
+# =============================================================================
+# IT Operations Support - AI Analysis (optional)
+# Note: This is a Claude Code skill - Claude Code provides AI capabilities.
+# The anthropic package is optional for standalone script usage only.
+# =============================================================================
+# anthropic>=0.18.0  # Uncomment for standalone script usage outside Claude Code
+
+# =============================================================================
+# IT Operations Support - Semantic Search (optional)
+# =============================================================================
+# sentence-transformers>=2.2.0  # Uncomment for KB semantic search
+# numpy>=1.24.0  # Required for sentence-transformers
+
+# =============================================================================
+# IT Operations Support - JWT Authentication
+# =============================================================================
+PyJWT>=2.8.0

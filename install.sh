@@ -1,9 +1,10 @@
 #!/bin/bash
 #
 # 10x-Team Outreach Skill Installer
-# Install: curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/10x-outreach-skill/main/install.sh | bash
+# Install: curl -fsSL https://raw.githubusercontent.com/Anit-1to10x/10x-outreach-skill/main/install.sh | bash
 #
 # This script installs the 10x-Team Visual Workflow Canvas skill for Claude Code
+# with IT Operations Support System capabilities.
 #
 
 set -e
@@ -21,7 +22,7 @@ NC='\033[0m' # No Color
 echo -e "${PURPLE}"
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║           10x-Team Outreach Skill Installer                   ║"
-echo "║         Visual Workflow Canvas for Claude Code                ║"
+echo "║   Visual Workflow Canvas + IT Operations Support System       ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo -e "${NC}"
 
@@ -128,6 +129,26 @@ install_dependencies() {
     echo -e "${GREEN}✓ All dependencies installed${NC}"
 }
 
+# Create IT Operations directories
+setup_it_operations() {
+    echo -e "${CYAN}Setting up IT Operations Support directories...${NC}"
+
+    cd "$INSTALL_DIR"
+
+    # Create IT Operations directories
+    mkdir -p tickets/active
+    mkdir -p tickets/closed
+    mkdir -p audit_logs
+    mkdir -p sla
+    mkdir -p tenants
+    mkdir -p knowledge_base
+    mkdir -p webhooks
+    mkdir -p metrics
+    mkdir -p credentials
+
+    echo -e "${GREEN}✓ IT Operations directories created${NC}"
+}
+
 # Setup Claude Code integration
 setup_claude_integration() {
     echo -e "${CYAN}Setting up Claude Code integration...${NC}"
@@ -226,7 +247,7 @@ print_success() {
     echo -e "  4. ${CYAN}Use Claude Code:${NC}"
     echo -e "     Say: ${YELLOW}\"start my app\"${NC} or ${YELLOW}\"/start\"${NC}"
     echo ""
-    echo -e "${PURPLE}Available Commands:${NC}"
+    echo -e "${PURPLE}Outreach Commands:${NC}"
     echo -e "  ${YELLOW}/start${NC}      - Start the visual canvas"
     echo -e "  ${YELLOW}/discover${NC}   - Find people using Exa AI"
     echo -e "  ${YELLOW}/outreach${NC}   - Email campaigns"
@@ -234,6 +255,13 @@ print_success() {
     echo -e "  ${YELLOW}/twitter${NC}    - Twitter automation"
     echo -e "  ${YELLOW}/instagram${NC}  - Instagram automation"
     echo -e "  ${YELLOW}/workflow${NC}   - Multi-platform sequences"
+    echo ""
+    echo -e "${PURPLE}IT Operations Commands:${NC}"
+    echo -e "  ${YELLOW}/ticket${NC}     - Create and manage tickets"
+    echo -e "  ${YELLOW}/sla${NC}        - Check SLA status"
+    echo -e "  ${YELLOW}/kb${NC}         - Search knowledge base"
+    echo -e "  ${YELLOW}/analyze${NC}    - Analyze email context"
+    echo -e "  ${YELLOW}/audit${NC}      - View audit logs"
     echo ""
     echo -e "${PURPLE}Configuration:${NC}"
     echo -e "  • Environment: .env file configured"
@@ -247,6 +275,7 @@ main() {
     check_requirements
     install_skill
     install_dependencies
+    setup_it_operations
     setup_claude_integration
     setup_environment
     print_success

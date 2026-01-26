@@ -175,7 +175,7 @@ class InboxReader:
                 userId='me',
                 id=message_id,
                 format='full' if include_body else 'metadata',
-                metadataHeaders=['From', 'To', 'Subject', 'Date']
+                metadataHeaders=['From', 'To', 'Subject', 'Date', 'Message-ID', 'References', 'In-Reply-To']
             ).execute()
 
             headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
@@ -183,6 +183,7 @@ class InboxReader:
             email_data = {
                 'id': msg['id'],
                 'thread_id': msg.get('threadId'),
+                'message_id': headers.get('Message-ID', headers.get('Message-Id', '')),
                 'snippet': msg.get('snippet', ''),
                 'from': headers.get('From', ''),
                 'to': headers.get('To', ''),
@@ -190,6 +191,8 @@ class InboxReader:
                 'date': headers.get('Date', ''),
                 'labels': msg.get('labelIds', []),
                 'is_unread': 'UNREAD' in msg.get('labelIds', []),
+                'in_reply_to': headers.get('In-Reply-To', ''),
+                'references': headers.get('References', ''),
             }
 
             # Parse date
@@ -259,6 +262,68 @@ class InboxReader:
         if email_data:
             return {'success': True, 'email': email_data}
         return {'success': False, 'error': 'Email not found'}
+
+    def get_thread(self, thread_id: str) -> Dict[str, Any]:
+        """
+        Fetch full thread history for context and References header building.
+
+        Args:
+            thread_id: Gmail thread ID
+
+        Returns:
+            Dict with thread messages and references chain
+        """
+        if not self.service:
+            return {'success': False, 'error': 'Not authenticated'}
+
+        try:
+            thread = self.service.users().threads().get(
+                userId='me',
+                id=thread_id,
+                format='metadata',
+                metadataHeaders=['From', 'To', 'Subject', 'Date', 'Message-ID', 'References', 'In-Reply-To']
+            ).execute()
+
+            messages = []
+            references_chain = []
+
+            for msg in thread.get('messages', []):
+                headers = {h['name']: h['value'] for h in msg.get('payload', {}).get('headers', [])}
+
+                message_id_header = headers.get('Message-ID', headers.get('Message-Id', ''))
+                if message_id_header:
+                    references_chain.append(message_id_header)
+
+                messages.append({
+                    'id': msg['id'],
+                    'thread_id': msg.get('threadId'),
+                    'message_id': message_id_header,
+                    'from': headers.get('From', ''),
+                    'to': headers.get('To', ''),
+                    'subject': headers.get('Subject', ''),
+                    'date': headers.get('Date', ''),
+                    'in_reply_to': headers.get('In-Reply-To', ''),
+                    'references': headers.get('References', ''),
+                    'snippet': msg.get('snippet', ''),
+                    'labels': msg.get('labelIds', [])
+                })
+
+            # Build the complete References string from all Message-IDs in the thread
+            references_string = ' '.join(references_chain) if references_chain else ''
+
+            return {
+                'success': True,
+                'thread_id': thread_id,
+                'messages': messages,
+                'message_count': len(messages),
+                'references': references_string,
+                'latest_message_id': references_chain[-1] if references_chain else None
+            }
+
+        except HttpError as e:
+            return {'success': False, 'error': str(e)}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
 
     def search_emails(
         self,

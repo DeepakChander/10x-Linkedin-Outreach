@@ -7,7 +7,6 @@ Reads recipient data from Google Sheets for email campaigns
 import os
 import sys
 import json
-import pickle
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 
@@ -25,6 +24,14 @@ except ImportError as e:
     print(f"[X] Missing dependency: {e}")
     print("    Run: pip install -r requirements.txt")
     sys.exit(1)
+
+# Import secure credential manager
+try:
+    from secure_credentials import save_google_token, load_google_token
+except ImportError:
+    # Fallback if not available
+    save_google_token = None
+    load_google_token = None
 
 load_dotenv(Path(__file__).parent.parent / '.env')
 
@@ -56,7 +63,9 @@ class SheetsReader:
         """
         self.base_dir = Path(__file__).parent.parent
         self.credentials_path = credentials_path or self.base_dir / 'credentials' / 'credentials.json'
-        self.token_path = token_path or self.base_dir / 'credentials' / 'sheets_token.pickle'
+        self.token_name = 'sheets_token'  # Name for secure credential storage
+        # Legacy pickle path for migration
+        self._legacy_token_path = token_path or self.base_dir / 'credentials' / 'sheets_token.pickle'
 
         self.service = None
         self.creds = None
@@ -92,14 +101,24 @@ class SheetsReader:
         """
         self.creds = None
 
-        # Try to load existing token
-        if not force_new and Path(self.token_path).exists():
+        # Try to load existing token from secure storage
+        if not force_new and load_google_token:
             try:
-                with open(self.token_path, 'rb') as token:
-                    self.creds = pickle.load(token)
-                print("[i] Loaded existing Sheets credentials")
+                self.creds = load_google_token(self.token_name, self.base_dir)
+                if self.creds:
+                    print("[i] Loaded Sheets credentials from secure storage")
             except Exception as e:
-                print(f"[!] Could not load token: {e}")
+                print(f"[!] Could not load secure token: {e}")
+
+        # Migration: Try legacy pickle if secure storage failed
+        if not self.creds and not force_new and self._legacy_token_path.exists():
+            try:
+                import pickle
+                with open(self._legacy_token_path, 'rb') as token:
+                    self.creds = pickle.load(token)
+                print("[i] Loaded Sheets credentials from legacy pickle (will migrate)")
+            except Exception as e:
+                print(f"[!] Could not load legacy token: {e}")
 
         # Check if credentials are valid
         if self.creds and self.creds.valid:
@@ -135,13 +154,30 @@ class SheetsReader:
                 print(f"[X] OAuth flow failed: {e}")
                 return False
 
-        # Save token
-        try:
-            Path(self.token_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(self.token_path, 'wb') as token:
-                pickle.dump(self.creds, token)
-        except Exception as e:
-            print(f"[!] Could not save token: {e}")
+        # Save token to secure storage
+        if save_google_token:
+            try:
+                if save_google_token(self.creds, self.token_name, self.base_dir):
+                    print(f"[OK] Sheets token saved securely")
+                    # Remove legacy pickle if it exists
+                    if self._legacy_token_path.exists():
+                        backup_path = self._legacy_token_path.with_suffix('.pickle.bak')
+                        self._legacy_token_path.rename(backup_path)
+                        print(f"[i] Legacy pickle backed up to {backup_path.name}")
+                else:
+                    print(f"[!] Could not save Sheets token securely")
+            except Exception as e:
+                print(f"[!] Could not save token: {e}")
+        else:
+            # Fallback to legacy pickle if secure storage not available
+            try:
+                import pickle
+                self._legacy_token_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._legacy_token_path, 'wb') as token:
+                    pickle.dump(self.creds, token)
+                print(f"[!] Token saved to legacy pickle (secure storage unavailable)")
+            except Exception as e:
+                print(f"[!] Could not save token: {e}")
 
         # Build service
         try:

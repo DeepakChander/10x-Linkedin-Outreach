@@ -1,6 +1,8 @@
 #
 # 10x-Team Outreach Skill Installer for Windows
-# Install: irm https://raw.githubusercontent.com/YOUR_USERNAME/10x-outreach-skill/main/install.ps1 | iex
+# Install: irm https://raw.githubusercontent.com/Anit-1to10x/10x-outreach-skill/main/install.ps1 | iex
+#
+# Includes IT Operations Support System capabilities
 #
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +16,7 @@ function Write-Color($text, $color) {
 Write-Host ""
 Write-Color "╔══════════════════════════════════════════════════════════════╗" Magenta
 Write-Color "║           10x-Team Outreach Skill Installer                   ║" Magenta
-Write-Color "║         Visual Workflow Canvas for Claude Code                ║" Magenta
+Write-Color "║   Visual Workflow Canvas + IT Operations Support System       ║" Magenta
 Write-Color "╚══════════════════════════════════════════════════════════════╝" Magenta
 Write-Host ""
 
@@ -116,6 +118,34 @@ function Install-Dependencies {
     Write-Color "✓ All dependencies installed" Green
 }
 
+# Setup IT Operations directories
+function Setup-ITOperations {
+    Write-Color "Setting up IT Operations Support directories..." Cyan
+
+    Set-Location $INSTALL_DIR
+
+    # Create IT Operations directories
+    $directories = @(
+        "tickets\active",
+        "tickets\closed",
+        "audit_logs",
+        "sla",
+        "tenants",
+        "knowledge_base",
+        "webhooks",
+        "metrics",
+        "credentials"
+    )
+
+    foreach ($dir in $directories) {
+        if (-not (Test-Path $dir)) {
+            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        }
+    }
+
+    Write-Color "✓ IT Operations directories created" Green
+}
+
 # Setup Claude integration
 function Setup-ClaudeIntegration {
     Write-Color "Setting up Claude Code integration..." Cyan
@@ -215,7 +245,7 @@ function Print-Success {
     Write-Host "  4. " -NoNewline; Write-Color "Use Claude Code:" Cyan
     Write-Host "     Say: " -NoNewline; Write-Color '"start my app"' Yellow -NoNewline; Write-Host " or " -NoNewline; Write-Color '"/start"' Yellow
     Write-Host ""
-    Write-Color "Available Commands:" Magenta
+    Write-Color "Outreach Commands:" Magenta
     Write-Host "  /start      - Start the visual canvas"
     Write-Host "  /discover   - Find people using Exa AI"
     Write-Host "  /outreach   - Email campaigns"
@@ -223,6 +253,13 @@ function Print-Success {
     Write-Host "  /twitter    - Twitter automation"
     Write-Host "  /instagram  - Instagram automation"
     Write-Host "  /workflow   - Multi-platform sequences"
+    Write-Host ""
+    Write-Color "IT Operations Commands:" Magenta
+    Write-Host "  /ticket     - Create and manage tickets"
+    Write-Host "  /sla        - Check SLA status"
+    Write-Host "  /kb         - Search knowledge base"
+    Write-Host "  /analyze    - Analyze email context"
+    Write-Host "  /audit      - View audit logs"
     Write-Host ""
     Write-Color "Configuration:" Magenta
     Write-Host "  • Environment: .env file configured"
@@ -236,6 +273,7 @@ try {
     Check-Requirements
     Install-Skill
     Install-Dependencies
+    Setup-ITOperations
     Setup-ClaudeIntegration
     Setup-Environment
     Print-Success

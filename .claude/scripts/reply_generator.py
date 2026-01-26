@@ -27,6 +27,20 @@ except ImportError as e:
 from gmail_client import GmailClient
 from inbox_reader import InboxReader
 
+# Import AI analyzer
+try:
+    from ai_context_analyzer import AIContextAnalyzer, get_analyzer
+    AI_ANALYZER_AVAILABLE = True
+except ImportError:
+    AI_ANALYZER_AVAILABLE = False
+
+# Import audit logger
+try:
+    from audit_logger import audit_log, EventType, EventSeverity
+    AUDIT_AVAILABLE = True
+except ImportError:
+    AUDIT_AVAILABLE = False
+
 load_dotenv(Path(__file__).parent.parent / '.env')
 console = Console()
 
@@ -48,6 +62,14 @@ class ReplyGenerator:
         self.gmail_client = GmailClient()
         self.inbox_reader = InboxReader()
         self.sender_name = os.getenv('SENDER_NAME', '')
+
+        # Initialize AI analyzer if available
+        self.ai_analyzer = None
+        if AI_ANALYZER_AVAILABLE:
+            try:
+                self.ai_analyzer = get_analyzer()
+            except Exception as e:
+                print(f"[!] Could not initialize AI analyzer: {e}")
 
         # Reply templates
         self.reply_templates = {
@@ -140,9 +162,9 @@ Best regards,
         body = email.get('body', email.get('snippet', ''))
         subject = email.get('subject', '')
 
-        # Detect tone and intent
+        # Detect tone and intent (basic analysis)
         body_lower = body.lower()
-        analysis = {
+        basic_analysis = {
             'is_question': '?' in body,
             'is_request': any(w in body_lower for w in ['please', 'could you', 'can you', 'would you']),
             'is_urgent': any(w in body_lower for w in ['urgent', 'asap', 'immediately']),
@@ -151,15 +173,65 @@ Best regards,
             'mentions_deadline': any(w in body_lower for w in ['deadline', 'due', 'by end of']),
         }
 
-        # Suggest reply type
-        if analysis['is_urgent'] or analysis['is_request']:
+        # AI-powered analysis if available
+        ai_analysis = None
+        if self.ai_analyzer:
+            try:
+                ai_analysis = self.ai_analyzer.analyze_email(
+                    body=body,
+                    subject=subject,
+                    from_field=from_field,
+                    date=email.get('date_formatted', '')
+                )
+                console.print(f"[dim]AI Analysis: {ai_analysis['intent']} / {ai_analysis['priority']} / {ai_analysis['sentiment']}[/dim]")
+
+                # Log AI analysis to audit
+                if AUDIT_AVAILABLE:
+                    audit_log(
+                        EventType.DATA,
+                        'email_analyzed',
+                        {
+                            'message_id': message_id,
+                            'intent': ai_analysis['intent'],
+                            'priority': ai_analysis['priority'],
+                            'method': ai_analysis['analysis_method']
+                        }
+                    )
+            except Exception as e:
+                console.print(f"[yellow]AI analysis unavailable: {e}[/yellow]")
+
+        # Merge AI analysis with basic analysis
+        analysis = basic_analysis.copy()
+        if ai_analysis:
+            analysis['ai'] = ai_analysis
+            analysis['priority'] = ai_analysis.get('priority', 'P3')
+            analysis['sentiment'] = ai_analysis.get('sentiment', 'neutral')
+            analysis['intent'] = ai_analysis.get('intent', 'other')
+            analysis['suggested_response'] = ai_analysis.get('suggested_response', '')
+
+        # Suggest reply type based on analysis
+        if ai_analysis and ai_analysis.get('intent') == 'incident':
             suggested_type = 'confirm'
-        elif analysis['is_question']:
+        elif basic_analysis['is_urgent'] or basic_analysis['is_request']:
+            suggested_type = 'confirm'
+        elif basic_analysis['is_question']:
             suggested_type = 'custom'
-        elif analysis['is_followup']:
+        elif basic_analysis['is_followup']:
             suggested_type = 'followup'
         else:
             suggested_type = 'acknowledge'
+
+        # Get thread info for proper References header
+        thread_id = email.get('thread_id')
+        references = email.get('references', '')
+        message_id_header = email.get('message_id', '')
+
+        # Build References chain for reply
+        if message_id_header:
+            if references:
+                references = f"{references} {message_id_header}"
+            else:
+                references = message_id_header
 
         return {
             'success': True,
@@ -171,7 +243,9 @@ Best regards,
                 'subject': subject,
                 'date': email.get('date_formatted', ''),
                 'body': body,
-                'thread_id': email.get('thread_id')
+                'thread_id': thread_id,
+                'message_id': message_id_header,
+                'references': references
             },
             'analysis': analysis,
             'suggested_reply_type': suggested_type
@@ -226,7 +300,9 @@ Best regards,
             'subject': reply_subject,
             'body': reply_body,
             'reply_type': reply_type,
-            'thread_id': original_email.get('thread_id')
+            'thread_id': original_email.get('thread_id'),
+            'message_id': original_email.get('message_id'),
+            'references': original_email.get('references')
         }
 
         return {
@@ -341,7 +417,10 @@ Best regards,
         result = self.gmail_client.send_email(
             to=draft['to'],
             subject=draft['subject'],
-            body=draft['body']
+            body=draft['body'],
+            thread_id=draft.get('thread_id'),
+            in_reply_to=draft.get('message_id'),
+            references=draft.get('references')
         )
 
         if result['success']:

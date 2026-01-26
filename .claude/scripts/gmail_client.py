@@ -8,7 +8,6 @@ import os
 import sys
 import base64
 import json
-import pickle
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -30,6 +29,14 @@ except ImportError as e:
     print(f"[X] Missing dependency: {e}")
     print("    Run: pip install -r requirements.txt")
     sys.exit(1)
+
+# Import secure credential manager
+try:
+    from secure_credentials import save_google_token, load_google_token
+except ImportError:
+    # Fallback if not available
+    save_google_token = None
+    load_google_token = None
 
 # Load environment variables
 load_dotenv(Path(__file__).parent.parent / '.env')
@@ -64,7 +71,9 @@ class GmailClient:
         """
         self.base_dir = Path(__file__).parent.parent
         self.credentials_path = credentials_path or self.base_dir / 'credentials' / 'credentials.json'
-        self.token_path = token_path or self.base_dir / 'credentials' / 'token.pickle'
+        self.token_name = 'gmail_token'  # Name for secure credential storage
+        # Legacy pickle path for migration
+        self._legacy_token_path = token_path or self.base_dir / 'credentials' / 'token.pickle'
 
         self.sender_email = os.getenv('SENDER_EMAIL', '')
         self.sender_name = os.getenv('SENDER_NAME', '')
@@ -103,14 +112,25 @@ class GmailClient:
         """
         self.creds = None
 
-        # Try to load existing token
-        if not force_new and Path(self.token_path).exists():
+        # Try to load existing token from secure storage
+        if not force_new and load_google_token:
             try:
-                with open(self.token_path, 'rb') as token:
-                    self.creds = pickle.load(token)
-                print("[i] Loaded existing credentials from token file")
+                self.creds = load_google_token(self.token_name, self.base_dir)
+                if self.creds:
+                    print("[i] Loaded credentials from secure storage")
             except Exception as e:
-                print(f"[!] Could not load token: {e}")
+                print(f"[!] Could not load secure token: {e}")
+
+        # Migration: Try legacy pickle if secure storage failed
+        if not self.creds and not force_new and self._legacy_token_path.exists():
+            try:
+                import pickle
+                with open(self._legacy_token_path, 'rb') as token:
+                    self.creds = pickle.load(token)
+                print("[i] Loaded credentials from legacy pickle (will migrate)")
+                # Migrate to secure storage on next save
+            except Exception as e:
+                print(f"[!] Could not load legacy token: {e}")
 
         # Check if credentials are valid
         if self.creds and self.creds.valid:
@@ -154,14 +174,30 @@ class GmailClient:
                 print(f"[X] OAuth flow failed: {e}")
                 return False
 
-        # Save credentials for future use
-        try:
-            Path(self.token_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(self.token_path, 'wb') as token:
-                pickle.dump(self.creds, token)
-            print(f"[OK] Token saved to {self.token_path}")
-        except Exception as e:
-            print(f"[!] Could not save token: {e}")
+        # Save credentials to secure storage
+        if save_google_token:
+            try:
+                if save_google_token(self.creds, self.token_name, self.base_dir):
+                    print(f"[OK] Token saved securely")
+                    # Remove legacy pickle if it exists
+                    if self._legacy_token_path.exists():
+                        backup_path = self._legacy_token_path.with_suffix('.pickle.bak')
+                        self._legacy_token_path.rename(backup_path)
+                        print(f"[i] Legacy pickle backed up to {backup_path.name}")
+                else:
+                    print(f"[!] Could not save token securely")
+            except Exception as e:
+                print(f"[!] Could not save token: {e}")
+        else:
+            # Fallback to legacy pickle if secure storage not available
+            try:
+                import pickle
+                self._legacy_token_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(self._legacy_token_path, 'wb') as token:
+                    pickle.dump(self.creds, token)
+                print(f"[!] Token saved to legacy pickle (secure storage unavailable)")
+            except Exception as e:
+                print(f"[!] Could not save token: {e}")
 
         # Build the Gmail service
         try:
@@ -199,7 +235,9 @@ class GmailClient:
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None,
         reply_to: Optional[str] = None,
-        attachments: Optional[List[str]] = None
+        attachments: Optional[List[str]] = None,
+        in_reply_to: Optional[str] = None,
+        references: Optional[str] = None
     ) -> Dict:
         """
         Create an email message.
@@ -213,6 +251,8 @@ class GmailClient:
             bcc: Optional BCC recipients
             reply_to: Optional reply-to address
             attachments: Optional list of file paths to attach
+            in_reply_to: Optional Message-ID for In-Reply-To header (threading)
+            references: Optional References header for email threading
 
         Returns:
             Message dict ready to send
@@ -236,6 +276,10 @@ class GmailClient:
                 message['bcc'] = ', '.join(bcc)
             if reply_to:
                 message['reply-to'] = reply_to
+            if in_reply_to:
+                message['In-Reply-To'] = in_reply_to
+            if references:
+                message['References'] = references
 
             # Attach plain text
             message.attach(MIMEText(body, 'plain'))
@@ -261,6 +305,10 @@ class GmailClient:
                 message['bcc'] = ', '.join(bcc)
             if reply_to:
                 message['reply-to'] = reply_to
+            if in_reply_to:
+                message['In-Reply-To'] = in_reply_to
+            if references:
+                message['References'] = references
 
         # Encode message
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
@@ -294,7 +342,10 @@ class GmailClient:
         bcc: Optional[List[str]] = None,
         reply_to: Optional[str] = None,
         attachments: Optional[List[str]] = None,
-        dry_run: bool = False
+        dry_run: bool = False,
+        thread_id: Optional[str] = None,
+        in_reply_to: Optional[str] = None,
+        references: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send an email via Gmail API.
@@ -309,6 +360,9 @@ class GmailClient:
             reply_to: Optional reply-to address
             attachments: Optional list of file paths
             dry_run: If True, don't actually send
+            thread_id: Optional Gmail thread ID to add message to existing thread
+            in_reply_to: Optional Message-ID for In-Reply-To header
+            references: Optional References header string
 
         Returns:
             Dict with 'success', 'message_id', 'error' keys
@@ -329,7 +383,9 @@ class GmailClient:
                 cc=cc,
                 bcc=bcc,
                 reply_to=reply_to,
-                attachments=attachments
+                attachments=attachments,
+                in_reply_to=in_reply_to,
+                references=references
             )
 
             if dry_run:
@@ -342,9 +398,12 @@ class GmailClient:
                 }
 
             # Send the message
+            send_body = {'raw': message['raw']}
+            if thread_id:
+                send_body['threadId'] = thread_id
             result = self.service.users().messages().send(
                 userId='me',
-                body=message
+                body=send_body
             ).execute()
 
             return {
