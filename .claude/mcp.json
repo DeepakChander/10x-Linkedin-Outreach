@@ -2,7 +2,7 @@
   "mcpServers": {
     "exa": {
       "type": "http",
-      "url": "https://mcp.exa.ai/mcp?exaApiKey=4bc627c0-4958-4a07-8ba8-d3e76ef75735",
+      "url": "https://mcp.exa.ai/mcp?exaApiKey=${EXA_API_KEY}",
       "description": "Exa AI search capabilities - web search, code search, company research, LinkedIn search",
       "tools": [
         "web_search_exa",
@@ -12,23 +12,45 @@
         "linkedin_search_exa",
         "deep_researcher_exa"
       ],
-      "note": "Exa AI neural semantic search with full tool access"
+      "note": "Set EXA_API_KEY in your .env or .env.local file. Get key at https://exa.ai"
     },
     "exa-websets": {
       "type": "http",
-      "url": "https://websetsmcp.exa.ai/mcp?exaApiKey=4bc627c0-4958-4a07-8ba8-d3e76ef75735",
-      "description": "Exa Websets - Curated collections of websites for AI agents. Create, manage, and search through custom web datasets.",
+      "url": "https://websetsmcp.exa.ai/mcp?exaApiKey=${EXA_API_KEY}",
+      "description": "Exa Websets - Curated collections of web entities with enrichments and monitors",
       "tools": [
-        "create_webset",
-        "get_webset",
-        "list_websets",
-        "add_to_webset",
-        "remove_from_webset",
-        "search_webset"
+        "create_webset_exa",
+        "get_webset_exa",
+        "list_websets_exa",
+        "list_webset_items_exa",
+        "get_webset_item_exa",
+        "delete_webset_exa"
       ],
-      "note": "Websets allow you to organize and search through curated collections of web pages."
+      "note": "Manage websets at https://websets.exa.ai/websets"
     }
   },
+
+  "userMcpServers": {
+    "_readme": "Add your own MCP servers below. Each entry needs a type and url (for HTTP) or command+args (for stdio). Examples are commented in mcp-servers.example.json.",
+
+  },
+
+  "exaApiScripts": {
+    "description": "Direct Exa REST API clients (no MCP required). Use these as an alternative or alongside the MCP servers.",
+    "search": {
+      "script": ".claude/scripts/exa_client.py",
+      "endpoints": ["search", "contents", "findsimilar", "answer", "research"],
+      "convenience": ["linkedin (search --include-domains linkedin.com/in)", "company (search --category company)"],
+      "usage": "python .claude/scripts/exa_client.py search 'AI founders' --type neural --num-results 20"
+    },
+    "websets": {
+      "script": ".claude/scripts/exa_websets_client.py",
+      "endpoints": ["create", "get", "list", "delete", "items", "get-item", "add-search", "add-enrichment", "list-enrichments", "create-monitor", "list-monitors", "delete-monitor"],
+      "usage": "python .claude/scripts/exa_websets_client.py create 'AI Founders SF' --count 50 --enrich 'Find email' --enrich-format email"
+    },
+    "env": "EXA_API_KEY in .env or .env.local"
+  },
+
   "browserExtension": {
     "path": "./browser-extension",
     "description": "ClaudeKit Browser Extension for LinkedIn, Twitter, and Instagram automation",
@@ -115,6 +137,8 @@
   "scripts": {
     "path": ".claude/scripts",
     "core": [
+      "exa_client.py",
+      "exa_websets_client.py",
       "gmail_client.py",
       "linkedin_adapter.py",
       "twitter_adapter.py",
