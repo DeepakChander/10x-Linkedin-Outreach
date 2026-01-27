@@ -1,62 +1,73 @@
 ---
-name: webhook
-description: Manage webhooks and external integrations
+name: integrations
+description: Sync data with external services and manage import/export
 ---
 
-# /webhook Command
+# /integrations Command
 
-Register webhook endpoints, manage event delivery, and integrate with external systems.
+Pull data from external services, sync contacts, and import/export across formats — all on-demand when you run Claude Code.
 
 ## Usage
 
 ```
-/webhook [action]
+/integrations [action]
 ```
 
 ### Actions
 
-- `/webhook` — List all registered webhooks
-- `/webhook register <url> --events <events>` — Register a new webhook
-- `/webhook test <id>` — Send test event to webhook
-- `/webhook history <id>` — View delivery history
-- `/webhook delete <id>` — Remove a webhook
-- `/webhook events` — List all available event types
-- `/webhook retry <delivery_id>` — Retry a failed delivery
+- `/integrations status` — Show all configured integrations and last sync time
+- `/integrations sync <service>` — Pull latest data from a service
+- `/integrations import <file> --format csv|json` — Import contacts/data from file
+- `/integrations export <type> --format csv|json` — Export data (contacts, campaigns, tickets)
+- `/integrations connect <service>` — Configure a new service connection
+- `/integrations disconnect <service>` — Remove a service connection
+- `/integrations log` — View recent sync/import/export activity
 
-## Event Types
+## Supported Services
 
-| Event | Description |
-|-------|-------------|
-| `workflow.started` | Workflow execution began |
-| `workflow.completed` | Workflow finished successfully |
-| `workflow.failed` | Workflow failed |
-| `email.sent` | Email sent |
-| `email.replied` | Email reply received |
-| `email.bounced` | Email bounced |
-| `ticket.created` | Support ticket created |
-| `ticket.resolved` | Support ticket resolved |
-| `campaign.started` | Campaign execution began |
-| `campaign.completed` | Campaign finished |
-| `platform.action` | Social platform action executed |
-| `system.error` | System error occurred |
-| `system.rate_limit` | Rate limit warning |
+| Service | What It Syncs | How |
+|---------|--------------|-----|
+| Google Sheets | Contacts, campaign recipients | Sheets API (pull on demand) |
+| CSV/JSON files | Contacts, leads, any data | Local file import/export |
+| Gmail | Inbox, sent mail, replies | Gmail API (pull on demand) |
+| Exa AI | Discovery results, websets | Exa API (pull on demand) |
+| CRM export | HubSpot/Salesforce CSV exports | File import |
 
-## Webhook Security
+## How It Works
 
-- HMAC-SHA256 payload signing
-- Signature in `X-Webhook-Signature` header
-- Secret key per webhook endpoint
-- Automatic retry: 3 attempts with exponential backoff
+Unlike webhooks (which need a server running 24/7), integrations work **pull-based**:
+
+1. You run `/integrations sync gmail` in Claude Code
+2. Script pulls new emails since last sync
+3. Updates local data (contacts, interactions, replies)
+4. Logs the sync event
+
+Everything runs on-demand when you use Claude Code — no background server needed.
+
+## Examples
+
+```
+/integrations status
+/integrations sync gmail
+/integrations import leads.csv --format csv
+/integrations export contacts --format json
+/integrations connect sheets --spreadsheet-id ABC123
+/integrations log
+```
 
 ## Implementation
 
 ```bash
-python .claude/scripts/webhook_api.py list
-python .claude/scripts/webhook_api.py register "https://example.com/hook" --events workflow.completed,email.replied
-python .claude/scripts/webhook_api.py test WEBHOOK_ID
-python .claude/scripts/webhook_api.py history WEBHOOK_ID
-python .claude/scripts/webhook_api.py delete WEBHOOK_ID
+python .claude/scripts/integration_manager.py status
+python .claude/scripts/integration_manager.py sync gmail
+python .claude/scripts/integration_manager.py import leads.csv --format csv
+python .claude/scripts/integration_manager.py export contacts --format json
+python .claude/scripts/integration_manager.py log
 ```
+
+## Audit Trail
+
+All sync and import/export events are logged to `output/integrations/sync_log.json`.
 
 ## Skill Reference
 

@@ -103,7 +103,7 @@ cd tldraw-canvas && npm install
 | `/ops` | Ops Manager | System health, logs, cleanup, backup |
 | `/analytics` | Analytics Lead | Campaign metrics and reports |
 | `/access` | Access Manager | RBAC, multi-tenant, credential vault |
-| `/webhook` | Integration Manager | Webhooks and external system integration |
+| `/integrations` | Integration Manager | Data sync, import/export, service connections |
 | `/verify` | Email Verifier | Email validation (MX, SPF, DKIM, DMARC) |
 | `/canvas` | Canvas Designer | Visual infinite canvas |
 | `/team` | Team Manager | Team member credentials |

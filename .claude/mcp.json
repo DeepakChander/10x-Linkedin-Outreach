@@ -132,7 +132,7 @@
       "path": ".claude/skills/support-manager/SKILL.md"
     },
     "integration-manager": {
-      "description": "Webhook and external system integration",
+      "description": "Data sync, import/export, service connections",
       "path": ".claude/skills/integration-manager/SKILL.md"
     },
     "access-manager": {
