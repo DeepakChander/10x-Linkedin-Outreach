@@ -1,11 +1,11 @@
 ---
 name: canvas
-description: Open the 10x-Team visual workflow canvas
+description: Open the official TLDraw visual canvas
 ---
 
 # /canvas Command
 
-Opens the 10x-Team visual workflow canvas for designing outreach workflows.
+Opens the official TLDraw infinite canvas (TLDraw SDK v4.3.0).
 
 ## Usage
 
@@ -16,47 +16,39 @@ Opens the 10x-Team visual workflow canvas for designing outreach workflows.
 ### Actions
 
 - `/canvas` or `/canvas open` - Start the canvas server
-- `/canvas build` - Build for production
 - `/canvas stop` - Stop the canvas server
 
 ## Starting the Canvas
 
 ```bash
-cd canvas && npm run dev -- --port 3006
+cd tldraw-canvas && npm install && npm run dev
 ```
 
-Then open: **http://localhost:3006/**
+Then open: **http://localhost:3000/**
 
 ## What You Can Do
 
-1. **Add Nodes** - Click skill icons in the toolbar
-2. **Load Templates** - Pre-built workflow configurations
-3. **Design Workflows** - Drag and arrange nodes
-4. **Export** - Copy workflow JSON for execution
-5. **Execute** - Use Claude Code to run the workflow
-
-## Workflow Templates
-
-- 💼 **B2B Outreach** - LinkedIn + Email sequence
-- 🤝 **Brand Partnership** - Instagram + Twitter + Email
-- ⭐ **Influencer Outreach** - Social engagement + pitch
-- 🌐 **Multi-Platform** - All channels adaptive
+1. **Draw & Write** - Pen, highlighter, eraser, text
+2. **Add Shapes** - Rectangle, ellipse, arrow, line, and more
+3. **Add Media** - Drag and drop images or videos onto canvas
+4. **Pan & Zoom** - Mouse drag to pan, scroll wheel to zoom
+5. **Select & Transform** - Click to select, drag handles to resize
+6. **Export** - Menu > Export as PNG, SVG, or JSON
+7. **Auto-Save** - Automatic persistence to localStorage
 
 ## Keyboard Shortcuts
 
 | Key | Action |
 |-----|--------|
-| Delete | Remove selected nodes |
+| Delete | Remove selected |
 | Ctrl+A | Select all |
 | Ctrl+Z | Undo |
-| Ctrl+Y | Redo |
+| Ctrl+Shift+Z | Redo |
+| Ctrl+C / Ctrl+V | Copy / Paste |
 | Scroll | Zoom in/out |
 
-## Integration
+## TLDraw Resources
 
-The canvas exports JSON that Claude Code can execute:
-
-1. Design your workflow on canvas
-2. Click "Export" to copy JSON
-3. Tell Claude Code: "Run this workflow" + paste JSON
-4. Claude Code orchestrates the execution
+- Official Docs: https://tldraw.dev
+- API Reference: https://tldraw.dev/api
+- Examples: https://tldraw.dev/examples

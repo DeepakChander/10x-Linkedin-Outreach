@@ -4,32 +4,24 @@ When the user says "start my app", "start the app", "start canvas", or similar:
 
 ## Automatic Startup Sequence
 
-Execute the following steps in order:
-
 ### 1. Check Dependencies
 ```bash
-cd canvas && npm install
+cd tldraw-canvas && npm install
 ```
 
-### 2. Build the App
+### 2. Start Development Server on Port 3000
 ```bash
-cd canvas && npm run build
+cd tldraw-canvas && npm run dev
 ```
 
-### 3. Start Development Server on Port 3000
-```bash
-cd canvas && npm run dev -- --port 3000
-```
-
-### 4. Notify User
+### 3. Notify User
 After the server starts, inform the user:
 - Canvas is running at http://localhost:3000
-- Auto-save is enabled
-- Drag green ▶ to blue ◀ to connect nodes
-- Click Run to export workflow
+- Official TLDraw SDK — infinite canvas with drawing, shapes, media, export
+- Auto-save to localStorage is enabled
 
 ## Quick Start (if already installed)
 If node_modules exists, skip install and just run:
 ```bash
-cd canvas && npm run dev -- --port 3000
+cd tldraw-canvas && npm run dev
 ```

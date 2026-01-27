@@ -17,11 +17,11 @@ A TLDraw-based infinite canvas for designing and visualizing outreach workflows.
 ## Quick Start
 
 ```bash
-# Start the canvas server
-cd canvas && npm run dev -- --port 3006
+# Start the canvas (official TLDraw SDK)
+cd tldraw-canvas && npm install && npm run dev
 ```
 
-Then open: **http://localhost:3006/**
+Then open: **http://localhost:3000/**
 
 ## When to Use This Skill
 

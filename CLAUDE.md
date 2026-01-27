@@ -102,16 +102,7 @@ cd canvas && npm install
 
 A standalone, portable implementation of the official TLDraw SDK.
 
-### Two Canvas Options
-
-| Canvas | Purpose | Location |
-|--------|---------|----------|
-| **tldraw-canvas** | Clean, standalone TLDraw (recommended) | `./tldraw-canvas/` |
-| **canvas** | Legacy API server (deprecated frontend) | `./canvas/` |
-
-### Recommended: tldraw-canvas
-
-The `tldraw-canvas` folder contains a **clean, portable** implementation using the **official TLDraw SDK** with zero custom modifications.
+The `tldraw-canvas` folder contains a **clean, portable** implementation using the **official TLDraw SDK** (v4.3.0) with zero custom modifications.
 
 **Quick Start:**
 ```bash
@@ -180,11 +171,7 @@ That's it! No configuration needed.
 │   ├── statusline.ps1        # Custom statusline (PowerShell)
 │   └── statusline.sh         # Custom statusline (Shell)
 │
-├── canvas/                   # Canvas API Server
-│   ├── server.js             # WebSocket/HTTP API server
-│   └── src/                  # Legacy custom canvas (deprecated)
-│
-├── tldraw-canvas/            # Standalone TLDraw (Official SDK)
+├── tldraw-canvas/            # Official TLDraw Canvas (SDK v4.3.0)
 │   ├── src/                  # Clean TLDraw implementation
 │   │   ├── App.tsx           # Pure TLDraw component
 │   │   ├── main.tsx          # React entry

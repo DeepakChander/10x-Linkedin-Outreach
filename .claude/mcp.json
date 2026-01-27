@@ -54,16 +54,14 @@
   "browserExtension": {
     "path": "./browser-extension",
     "description": "ClaudeKit Browser Extension for LinkedIn, Twitter, and Instagram automation",
-    "websocketUrl": "ws://localhost:3001/ws",
-    "apiUrl": "http://localhost:3000/api",
     "note": "Install the browser extension from ./browser-extension folder"
   },
   "canvas": {
-    "frontendUrl": "http://localhost:3000",
-    "websocketUrl": "ws://localhost:3001/ws",
-    "apiUrl": "http://localhost:3000/api",
-    "workflowsPath": "./output/workflows",
-    "note": "TLDraw canvas runs on port 3000, WebSocket on port 3001"
+    "type": "tldraw",
+    "path": "./tldraw-canvas",
+    "url": "http://localhost:3000",
+    "start": "cd tldraw-canvas && npm run dev",
+    "note": "Official TLDraw SDK v4.3.0 — infinite canvas with drawing, shapes, media, export"
   },
   "skills": {
     "discovery-engine": {
