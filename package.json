@@ -1,21 +1,31 @@
 {
   "name": "10x-outreach-skill",
-  "version": "1.0.0",
-  "description": "Visual workflow canvas for 10x-Team outreach automation",
+  "version": "3.0.0",
+  "description": "Complete multi-platform outreach automation for Claude Code — Gmail, LinkedIn, Twitter, Instagram with visual canvas",
   "type": "module",
   "main": "setup.js",
   "scripts": {
-    "setup": "node setup.js",
-    "start": "cd canvas && npm run dev -- --port 3000",
-    "server": "cd canvas && npm run server"
+    "setup": "node scripts/setup-check.js && cd tldraw-canvas && npm install",
+    "setup:wizard": "node setup.js",
+    "start": "cd tldraw-canvas && npm run dev -- --port 3000",
+    "build": "cd tldraw-canvas && npm run build",
+    "canvas": "cd tldraw-canvas && npm run dev -- --port 3000",
+    "port:check": "node scripts/port-manager.js check 3000",
+    "port:free": "node scripts/port-manager.js free 3000"
   },
   "keywords": [
     "outreach",
     "automation",
     "claude-code",
-    "workflow"
+    "workflow",
+    "gmail",
+    "linkedin",
+    "twitter",
+    "instagram",
+    "exa-ai",
+    "canvas"
   ],
-  "author": "10x-Team",
+  "author": "10x.in",
   "license": "MIT",
   "engines": {
     "node": ">=18.0.0"

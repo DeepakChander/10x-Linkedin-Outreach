@@ -16,19 +16,19 @@ When invoked, perform these steps:
 ### Step 1: Navigate and Check Installation
 First, check if dependencies are installed:
 ```bash
-cd canvas && ls node_modules 2>/dev/null || echo "NEEDS_INSTALL"
+cd tldraw-canvas && ls node_modules 2>/dev/null || echo "NEEDS_INSTALL"
 ```
 
 ### Step 2: Install if Needed
 If node_modules doesn't exist or "NEEDS_INSTALL" was echoed:
 ```bash
-cd canvas && npm install
+cd tldraw-canvas && npm install
 ```
 
 ### Step 3: Start Development Server
 Start the Vite dev server on port 3000:
 ```bash
-cd canvas && npm run dev -- --port 3000
+cd tldraw-canvas && npm run dev -- --port 3000
 ```
 
 Run this command in the background so the user can continue interacting.

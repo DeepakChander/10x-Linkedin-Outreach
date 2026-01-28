@@ -441,10 +441,10 @@ function displayNextSteps() {
   log.dim('   - Go to chrome://extensions/');
   log.dim('   - Enable "Developer mode"');
   log.dim('   - Click "Load unpacked"');
-  log.dim('   - Select: .claude/skills/browser-extension/');
+  log.dim('   - Select: browser-extension/');
 
   console.log(`\n${colors.bright}2. Start the Canvas Server:${colors.reset}`);
-  log.dim('   cd canvas');
+  log.dim('   cd tldraw-canvas');
   log.dim('   npm run dev -- --port 3000');
 
   console.log(`\n${colors.bright}3. Open the Visual Canvas:${colors.reset}`);

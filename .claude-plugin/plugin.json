@@ -47,13 +47,26 @@
     ".claude/skills/analytics",
     ".claude/skills/content-marketing",
     ".claude/skills/seo-optimization",
+    ".claude/skills/account-manager",
+    ".claude/skills/project-manager",
+    ".claude/skills/qa-compliance",
+    ".claude/skills/support-manager",
+    ".claude/skills/integration-manager",
+    ".claude/skills/access-manager",
+    ".claude/skills/campaign-executor",
+    ".claude/skills/sheet-reader",
     ".claude/skills/start-app.md"
   ],
   "agents": [
     ".claude/agents/email-planner.md",
-    ".claude/agents/email-executor.md"
+    ".claude/agents/email-executor.md",
+    ".claude/agents/account-planner.md",
+    ".claude/agents/compliance-checker.md",
+    ".claude/agents/project-coordinator.md",
+    ".claude/agents/support-router.md"
   ],
   "commands": [
+    ".claude/commands/start.md",
     ".claude/commands/outreach.md",
     ".claude/commands/inbox.md",
     ".claude/commands/compose.md",
@@ -66,10 +79,21 @@
     ".claude/commands/twitter.md",
     ".claude/commands/instagram.md",
     ".claude/commands/canvas.md",
-    ".claude/commands/start.md",
     ".claude/commands/lookback.md",
     ".claude/commands/exa.md",
-    ".claude/commands/websets.md"
+    ".claude/commands/websets.md",
+    ".claude/commands/accounts.md",
+    ".claude/commands/project.md",
+    ".claude/commands/content.md",
+    ".claude/commands/seo.md",
+    ".claude/commands/analytics.md",
+    ".claude/commands/qa.md",
+    ".claude/commands/ticket.md",
+    ".claude/commands/ops.md",
+    ".claude/commands/access.md",
+    ".claude/commands/verify.md",
+    ".claude/commands/webhook.md",
+    ".claude/commands/template.md"
   ],
   "hooks": [
     {
