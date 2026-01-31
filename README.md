@@ -10,11 +10,23 @@ A focused LinkedIn outreach automation skill for [Claude Code](https://docs.anth
 
 This is a Claude Code skill that automates LinkedIn outreach in 3 steps:
 
-1. **Discover** — Search LinkedIn for target profiles by industry, role, location
-2. **Connect** — Send personalized connection requests (or InMails for 3rd-degree)
-3. **Message** — Follow up with accepted connections using smart template selection
+1. **`/discover`** — Search LinkedIn for target profiles by industry, role, location
+2. **`/connect`** — Send personalized connection requests (or InMails for 3rd-degree)
+3. **`/message`** — Follow up with accepted connections using smart template selection
 
 It uses a Chrome extension as a bridge between Claude Code and LinkedIn's UI. No LinkedIn API keys needed — it works through browser automation with human-like delays.
+
+### Zero Manual Steps
+
+Every command is fully self-contained. When you type `/discover`, the skill automatically:
+1. Starts the HTTP bridge server
+2. Waits for the Chrome extension to connect (handshake)
+3. Pings the content script to verify LinkedIn is logged in
+4. Navigates Chrome to the right pages
+5. Re-injects the content script after every page navigation
+6. Scrapes data and returns results
+
+**You never need to manually run `node ... --server` or refresh tabs.** Just type the command and provide your filters.
 
 ---
 
@@ -34,31 +46,45 @@ It uses a Chrome extension as a bridge between Claude Code and LinkedIn's UI. No
 ## Architecture
 
 ```
-You (Claude Code)
-  │
-  ├── /discover, /connect, /message
-  │
-  ▼
-extension_client.js (Node.js HTTP server on localhost:3456)
-  │
-  ▼
-Chrome Extension (polls server every 500ms)
-  │
-  ▼
+You type: /discover
+         │
+         ▼
+Claude Code runs: node extension_client.js searchProfiles '{...}'
+         │
+         ├── 1. Auto-starts HTTP server on port 3456
+         ├── 2. Waits for extension handshake (up to 30s)
+         ├── 3. Sends ping → verifies LinkedIn login
+         ├── 4. Sends actual command
+         │
+         ▼
+Chrome Extension (background.js polls server every 500ms)
+         │
+         ├── Finds LinkedIn tab
+         ├── Navigates to target URL (search page / profile)
+         ├── Waits for page load (complete)
+         ├── Re-injects content.js (fresh listener every time)
+         │
+         ▼
 content.js (injected into linkedin.com)
-  │
-  ▼
-LinkedIn DOM (clicks buttons, types messages, scrapes profiles)
-  │
-  ▼
-Results flow back: content.js → extension → server → Claude Code
+         │
+         ├── Scrapes DOM (profiles, buttons, text)
+         ├── Clicks buttons (Connect, Message, Send)
+         ├── Types personalized notes with human-like delays
+         │
+         ▼
+Results flow back: content.js → background.js → server → Claude Code
 ```
 
-Zero external dependencies. Only uses Node.js built-in `http` module.
+### Key Design Decisions
+
+- **Navigation from background.js, not content.js** — When the page navigates (e.g., search page 1 → page 2), the content script dies. So `background.js` handles all `chrome.tabs.update()` navigation, waits for load, then re-injects `content.js` with a fresh message listener.
+- **Always re-inject** — Content scripts go stale after extension reloads. Every command re-injects `content.js` before sending messages, with duplicate-listener guards.
+- **Handshake before command** — The client waits for the extension's first `/poll` request before queuing any command. No more race conditions.
+- **Ping verification** — Before any real command, a `ping` is sent to verify the content script is alive and LinkedIn is logged in.
 
 ---
 
-## Setup
+## One-Time Setup
 
 ### Prerequisites
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
@@ -77,31 +103,20 @@ cd 10x-Linkedin-Outreach
 2. Toggle **Developer mode** ON (top right)
 3. Click **Load unpacked**
 4. Select the `extension/` folder from this project
-5. You should see **"10X LinkedIn"** appear with a red "OFF" badge
+5. You should see **"10X LinkedIn Outreach"** appear
 
 ### Step 3: Log into LinkedIn
 1. Open a new Chrome tab
 2. Go to `linkedin.com` and log in
-3. Keep this tab open while using the skill
+3. Keep this tab open
 
-### Step 4: Test the connection
-```bash
-# Start the bridge server
-node .claude/scripts/extension_client.js --server
-```
-The extension badge should turn green ("ON").
-
-In another terminal:
-```bash
-node .claude/scripts/extension_client.js ping
-```
-Expected output: `{"success": true, "ready": true, "loggedIn": true}`
-
-### Step 5: Open Claude Code
+### Step 4: Open Claude Code and run commands
 ```bash
 claude
 ```
-You now have access to `/discover`, `/connect`, and `/message`.
+Then type `/discover` — everything else is automatic.
+
+> **That's it.** No server to start manually. No scripts to run. No tabs to refresh.
 
 ---
 
@@ -111,20 +126,28 @@ You now have access to `/discover`, `/connect`, and `/message`.
 
 Searches LinkedIn and saves matching profiles to `output/profiles.json`.
 
-**What it does:**
-1. Asks you for search filters (industry, role, location, company size, keywords)
+**What happens when you type `/discover`:**
+1. Claude asks you for search filters (industry, role, location, company size, keywords)
 2. Builds a LinkedIn search URL from your filters
-3. Scrapes profile cards across up to 10 pages (~100 profiles)
+3. Runs `node extension_client.js searchProfiles '{...}'` which:
+   - Auto-starts server on port 3456
+   - Waits for Chrome extension handshake
+   - Verifies LinkedIn login via ping
+   - Tells background.js to navigate to search URL
+   - background.js navigates Chrome → waits for load → re-injects content.js
+   - content.js scrapes profile cards on the page
+   - Repeats for up to 3 pages (~30 profiles per page)
 4. Deduplicates against existing profiles in your database
 5. Saves new profiles with status `"discovered"`
 
-**Example:**
+**Example interaction:**
 ```
 You: /discover
 Claude: What industry? → SaaS
 Claude: What role? → CTO
 Claude: What location? → San Francisco
 Claude: Found 47 new profiles (3 duplicates skipped). Batch: 2026-01-31-saas-cto
+Claude: Run /connect to send connection requests to these profiles.
 ```
 
 **What gets saved per profile:**
@@ -148,10 +171,12 @@ Claude: Found 47 new profiles (3 duplicates skipped). Batch: 2026-01-31-saas-cto
 
 Sends personalized connection requests to all discovered profiles. Falls back to InMail for 3rd-degree connections.
 
-**What it does:**
+**What happens when you type `/connect`:**
 1. Reads `output/profiles.json` and filters `status === "discovered"`
 2. Shows you the list and asks for **one-time approval**
-3. For each profile:
+3. For each profile (all automated):
+   - Server auto-starts + handshake + login verify
+   - background.js navigates to profile URL → waits for load → injects content.js
    - Deep scans the profile (name, headline, about, experience, posts, followers)
    - If Connect button exists → fills connection note template → sends request
    - If no Connect button (3rd degree) → fills InMail template → sends InMail
@@ -180,16 +205,13 @@ I'm exploring how leaders like you are approaching AI in practice. Would love to
 
 Checks which connection requests were accepted, then sends personalized follow-up messages.
 
-**What it does:**
+**What happens when you type `/message`:**
 1. Reads `output/profiles.json` and filters `status === "connection_sent"`
-2. Groups profiles by date and recommends timing:
-   ```
-   Ready to check 52 profiles:
-   - 30 from yesterday (good to check now)
-   - 17 from today (may be too early)
-   - 5 from 3+ days ago (overdue)
-   ```
-3. Checks each profile's connection status on LinkedIn
+2. Groups profiles by date and recommends timing
+3. For each profile (all automated):
+   - Server auto-starts + handshake + login verify
+   - background.js navigates to profile → injects content.js
+   - Checks connection status (accepted / pending / declined)
 4. For accepted connections:
    - Deep scans the profile
    - Auto-selects the best message template (see Template Selection below)
@@ -261,62 +283,65 @@ The extension client checks limits **before** every action and refuses to procee
 
 ---
 
+## How the Auto-Connection Works
+
+This is the flow when you type any command — no manual steps needed:
+
+```
+1. Claude runs: node extension_client.js <command> <args>
+          │
+2. Client tries to bind port 3456
+          ├── Success → starts server
+          └── Port in use → sends command via HTTP to existing server
+          │
+3. Server starts, waits for extension poll
+          │  (Extension background.js polls /poll every 500ms)
+          │
+4. Extension connects (first /poll = handshake)
+          │
+5. Client sends "ping" command
+          │  → background.js injects content.js into LinkedIn tab
+          │  → content.js responds with {loggedIn: true}
+          │
+6. Client sends actual command (e.g., searchProfiles)
+          │  → background.js navigates Chrome to search URL
+          │  → waits for page load (complete)
+          │  → re-injects content.js (old one died with navigation)
+          │  → content.js scrapes DOM, returns data
+          │
+7. Result flows back to Claude → profiles.json updated
+```
+
+### Why re-inject content.js?
+
+Chrome extensions have a fundamental limitation: when a page navigates, the content script's `chrome.runtime.onMessage` listener dies. This means:
+- After `searchProfiles` navigates to page 2, the old content.js is gone
+- After extension reload in `chrome://extensions`, all existing content scripts lose their listeners
+- After Chrome restarts, no content scripts are running
+
+Our solution: `background.js` handles ALL navigation via `chrome.tabs.update()`, waits for `tabs.onUpdated` status=complete, then always calls `chrome.scripting.executeScript` to inject a fresh `content.js`. The content script has a duplicate-injection guard that removes the old listener before registering a new one.
+
+---
+
 ## Edge Cases
 
 | Scenario | How It's Handled |
 |----------|-----------------|
-| LinkedIn not logged in | Returns error, tells you to log in |
+| LinkedIn not logged in | Auto-detected by ping, error reported |
 | CAPTCHA appears | Pauses all actions, alerts you to solve it manually |
-| Weekly invitation limit (LinkedIn's ~100/week cap) | Stops Step 2, reports partial progress, resume next week |
+| Weekly invitation limit | Stops, reports partial progress |
 | Profile deactivated or 404 | Marks `"profile_not_found"`, skips |
 | Already connected | Marks `"already_connected"`, skips to Step 3 |
-| Existing conversation thread | Skips auto-message, alerts you |
 | Browser closed mid-batch | Resume-safe — picks up from last saved profile |
 | Duplicate profiles across searches | Deduplication by `profileUrl` |
 | Connection note exceeds 300 chars | Truncates to 295 + "..." |
 | InMail monthly quota near limit | Warns at 80%, blocks at 100% |
 | No response after 7 days | Marks `"cold"` |
 | No response after 14 days | Marks `"archived"` |
-| Extension disconnected | Auto-reconnects every 500ms, badge shows red |
-| Slow internet | 20-second element wait timeout, 1 retry before fail |
-
----
-
-## Extension Client CLI
-
-The bridge server can also be used directly from the terminal:
-
-```bash
-# Start server (stays alive)
-node .claude/scripts/extension_client.js --server
-
-# Test connection
-node .claude/scripts/extension_client.js ping
-
-# Search profiles
-node .claude/scripts/extension_client.js searchProfiles '{"filters":{"keywords":"AI SaaS","location":"USA"}}'
-
-# Deep scan a profile
-node .claude/scripts/extension_client.js deepScan '{"profileUrl":"https://www.linkedin.com/in/janedoe"}'
-
-# Send connection request
-node .claude/scripts/extension_client.js sendConnection '{"profileUrl":"...","note":"Hi Jane, would love to connect."}'
-
-# Send InMail (Premium only)
-node .claude/scripts/extension_client.js sendInMail '{"profileUrl":"...","subject":"Quick question","body":"Hi..."}'
-
-# Check if connection was accepted
-node .claude/scripts/extension_client.js checkAcceptance '{"profileUrl":"..."}'
-
-# Send message to connection
-node .claude/scripts/extension_client.js sendMessage '{"profileUrl":"...","message":"Hi Jane, thanks for connecting!"}'
-
-# Check rate limits
-node .claude/scripts/extension_client.js getLimits
-
-# Check server status
-node .claude/scripts/extension_client.js getStatus
-```
+| Extension reloaded while tab open | Auto re-injects content script |
+| Server already running on port 3456 | Sends command via HTTP to existing server |
+| Page navigation kills content script | background.js re-injects after every navigation |
+| Slow internet / LinkedIn SPA delays | 2s extra wait after page load + 20s element timeout |
 
 ---
 
@@ -326,13 +351,13 @@ node .claude/scripts/extension_client.js getStatus
 10x-Linkedin-Outreach/
 ├── extension/                      Chrome extension
 │   ├── manifest.json               Manifest V3, LinkedIn-only permissions
-│   ├── background.js               Polls server, routes commands to content script
-│   ├── content.js                  LinkedIn DOM automation (search, connect, message)
+│   ├── background.js               Polls server, navigates tabs, injects content.js
+│   ├── content.js                  LinkedIn DOM automation (scrape, connect, message)
 │   ├── popup/
 │   │   ├── popup.html              Extension popup UI
 │   │   ├── popup.css               Dark theme styles
-│   │   └── popup.js                Status display + reconnect
-│   └── icons/                      Extension icons
+│   │   └── popup.js                Status display + hint when server not running
+│   └── icons/                      Extension icons (16, 48, 128px)
 │
 ├── .claude/
 │   ├── commands/
@@ -340,7 +365,7 @@ node .claude/scripts/extension_client.js getStatus
 │   │   ├── connect.md              Step 2: Send connections/InMails
 │   │   └── message.md              Step 3: Message accepted connections
 │   ├── scripts/
-│   │   └── extension_client.js     Node.js HTTP bridge (zero dependencies)
+│   │   └── extension_client.js     Node.js HTTP bridge (auto-start, handshake, ping)
 │   ├── skills/
 │   │   └── linkedin-outreach/
 │   │       └── SKILL.md            Unified skill definition
@@ -349,11 +374,11 @@ node .claude/scripts/extension_client.js getStatus
 │   │       ├── connection-note.md  Connection request note (300 char max)
 │   │       ├── inmail-template.md  InMail template with subject line
 │   │       └── messages/
-│   │           ├── base_draft.md           Casual, no brand (2nd degree active)
+│   │           ├── base_draft.md           Casual (2nd degree active posters)
 │   │           ├── option_1_brand_invite.md Brand-forward (Founder/CEO/CTO)
-│   │           ├── option_2_featured_voice.md Featured voice (VP/Director + AI posts)
-│   │           ├── option_3_formal.md       Formal enterprise (CXO + large company)
-│   │           ├── option_4_collaboration.md Collaboration (high followers/creators)
+│   │           ├── option_2_featured_voice.md Featured voice (VP/Director + AI)
+│   │           ├── option_3_formal.md       Formal enterprise (CXO + large co)
+│   │           ├── option_4_collaboration.md Collaboration (high followers)
 │   │           └── option_5_future_facing.md Future-facing (scaling founders)
 │   └── settings.local.json        Bash permissions for node scripts
 │
@@ -363,35 +388,37 @@ node .claude/scripts/extension_client.js getStatus
 │
 ├── CLAUDE.md                       Claude Code project instructions
 ├── README.md                       This file
-├── package.json                    Project metadata (zero dependencies)
-├── setup.md                        Visual setup guide for non-technical users
-└── .gitignore                      Ignores profiles, limits, logs, node_modules
+└── package.json                    Project metadata (zero dependencies)
 ```
 
 ---
 
 ## Troubleshooting
 
-**Extension badge stays red (OFF)?**
-- Make sure the server is running: `node .claude/scripts/extension_client.js --server`
-- Check that port 3456 is not in use: `lsof -i :3456` or `netstat -an | findstr 3456`
+**"EXTENSION_NOT_CONNECTED" error?**
+- Make sure Chrome is open
+- Go to `chrome://extensions` and verify "10X LinkedIn Outreach" is enabled
+- Open `linkedin.com` in a tab
 
-**"No LinkedIn tab open" error?**
-- Open `linkedin.com` in Chrome and make sure you're logged in
-- The extension only works on `*.linkedin.com` pages
+**"NOT_LOGGED_IN" error?**
+- Open `linkedin.com` in Chrome and log in
+- The skill auto-detects login status before running any command
+
+**"CONTENT_SCRIPT_NOT_READY" error?**
+- Press F5 on the LinkedIn tab to refresh it
+- This happens rarely — the skill auto-re-injects content scripts
 
 **CAPTCHA appeared?**
 - Solve it manually in the browser
-- Resume your command — it picks up where it left off
+- Run the command again — it picks up where it left off
 
 **Weekly limit reached?**
 - LinkedIn caps at ~100 invitations per week
-- Wait until next week, the skill will stop automatically and save progress
+- Wait until next week, the skill stops automatically and saves progress
 
-**Extension not loading?**
-- Make sure you're using Chrome (not Firefox/Safari)
-- Check `chrome://extensions` for any error messages
-- Try "Reload" on the extension
+**Port 3456 already in use?**
+- The skill auto-detects this and sends commands to the existing server
+- Or kill it: `npx kill-port 3456` / `taskkill /F /PID <pid>` on Windows
 
 ---
 

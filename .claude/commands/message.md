@@ -1,9 +1,12 @@
 ---
-allowed-tools: Bash, Read, Write
+allowed-tools: Bash, Read, Write, AskUserQuestion
 description: "Message accepted LinkedIn connections"
 ---
 
 # /message — Message Accepted Connections
+
+## Prerequisites (auto-handled, no user action needed)
+The extension client auto-starts the server, waits for Chrome extension handshake, verifies LinkedIn login, then executes. User just needs Chrome open with LinkedIn logged in.
 
 ## Instructions
 
@@ -34,28 +37,28 @@ node .claude/scripts/extension_client.js checkAcceptance '{"profileUrl":"<url>"}
    ```bash
    node .claude/scripts/extension_client.js deepScan '{"profileUrl":"<url>"}'
    ```
-   
+
    b. Select template using rules from SKILL.md:
    - Read the profile's headline, company, followers, posts
    - Apply rules in priority order (1-7)
    - Read the selected template from `.claude/templates/linkedin/messages/`
-   
+
    c. Fill template variables:
    - `{{first_name}}` — first word of name
    - `{{company}}` — from deep scan
    - `{{headline}}` — their headline
    - `{{specific_insight}}` — from about/posts/experience
    - `{{role}}` — their job title
-   
+
    d. Queue the message with template name
 
 7. Show first 3 messages for preview:
    ```
    Preview (3 of N):
-   
+
    → Jane Doe (option_1_brand_invite):
    "Hi Jane, loved your take on AI in fintech..."
-   
+
    → John Smith (base_draft):
    "Hey John, your recent post about scaling..."
    ```
@@ -75,3 +78,8 @@ node .claude/scripts/extension_client.js sendMessage '{"profileUrl":"<url>","mes
     - If 14+ days → mark `"archived"`
 
 11. Report: "Sent N messages, M still pending, K declined."
+
+## Error Handling
+- `EXTENSION_NOT_CONNECTED` → Tell user: "Open Chrome, make sure the 10X LinkedIn extension is enabled, and open linkedin.com"
+- `NOT_LOGGED_IN` → Tell user: "Log in to LinkedIn in Chrome and try again"
+- `CONTENT_SCRIPT_NOT_READY` → Tell user: "Refresh the LinkedIn tab (F5) and try again"

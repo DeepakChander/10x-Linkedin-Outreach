@@ -1,9 +1,12 @@
 ---
-allowed-tools: Bash, Read, Write
+allowed-tools: Bash, Read, Write, AskUserQuestion
 description: "Find LinkedIn profiles by search filters"
 ---
 
 # /discover — Find LinkedIn Profiles
+
+## Prerequisites (auto-handled, no user action needed)
+The extension client auto-starts the server, waits for Chrome extension handshake, verifies LinkedIn login, then executes. User just needs Chrome open with LinkedIn logged in.
 
 ## Instructions
 
@@ -16,10 +19,15 @@ description: "Find LinkedIn profiles by search filters"
 
 2. Build the filters JSON from their response.
 
-3. Run the search:
+3. Run the search (server auto-starts, waits for extension, verifies login):
 ```bash
-node .claude/scripts/extension_client.js searchProfiles '{"filters":{"keywords":"<keywords>","industry":"<industry>","location":"<location>"},"maxPages":10}'
+node .claude/scripts/extension_client.js searchProfiles '{"filters":{"keywords":"<keywords>","industry":"<industry>","location":"<location>","title":"<role>"},"maxPages":3}'
 ```
+The command will:
+- Auto-start HTTP server on port 3456
+- Wait up to 30s for Chrome extension to connect
+- Ping content script to verify LinkedIn is logged in
+- If login check fails, it reports the error — tell user to open Chrome with LinkedIn
 
 4. Read existing `output/profiles.json` (create if missing, start with `[]`).
 
@@ -45,3 +53,11 @@ node .claude/scripts/extension_client.js searchProfiles '{"filters":{"keywords":
 8. Report: "Found **N** new profiles (M duplicates skipped). Batch: `<batch_id>`"
 
 9. Suggest: "Run `/connect` to send connection requests to these profiles."
+
+## Error Handling
+- `EXTENSION_NOT_CONNECTED` → Tell user: "Open Chrome, make sure the 10X LinkedIn extension is enabled, and open linkedin.com"
+- `NOT_LOGGED_IN` → Tell user: "Log in to LinkedIn in Chrome and try again"
+- `CONTENT_SCRIPT_NOT_READY` → Tell user: "Refresh the LinkedIn tab (F5) and try again"
+- `CAPTCHA` → Tell user: "Solve the CAPTCHA in Chrome and run /discover again"
+- `RATE_LIMITED` → Tell user the daily limit reached, try tomorrow
+- `TIMEOUT` → The extension took too long. Try again.
