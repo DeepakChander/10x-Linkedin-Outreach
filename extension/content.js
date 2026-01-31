@@ -58,15 +58,47 @@ async function typeInTextarea(el, text) {
 // ── Commands ──
 
 async function ping() {
-  const ok = !!document.querySelector('img.global-nav__me-photo') || !!document.querySelector('.feed-identity-module') || window.location.hostname === 'www.linkedin.com';
-  const captcha = !!$q(S.captchaChallenge);
-  return { success: true, ready: true, loggedIn: ok && !captcha, captcha, url: window.location.href };
+  const loggedIn = isLoggedIn();
+  const captcha = isCaptchaVisible();
+  return { success: true, ready: true, loggedIn: loggedIn && !captcha, captcha, url: window.location.href };
 }
 
 async function checkLoginStatus() {
-  const ok = !!document.querySelector('img.global-nav__me-photo') || !!document.querySelector('.feed-identity-module') || window.location.hostname === 'www.linkedin.com';
-  const captcha = !!$q(S.captchaChallenge);
-  return { success: true, loggedIn: ok && !captcha, captcha };
+  const loggedIn = isLoggedIn();
+  const captcha = isCaptchaVisible();
+  return { success: true, loggedIn: loggedIn && !captcha, captcha };
+}
+
+// Robust login detection — works with LinkedIn's obfuscated 2025+ DOM
+function isLoggedIn() {
+  // Check for global nav (present on all logged-in pages)
+  if (document.querySelector('img.global-nav__me-photo')) return true;
+  if (document.querySelector('.feed-identity-module')) return true;
+  // Check for any nav element with profile image
+  if (document.querySelector('img[alt*="Photo of"]')) return true;
+  if (document.querySelector('img[alt*="photo"]')) return true;
+  // Check for nav bar with messaging/notifications
+  if (document.querySelector('a[href*="/messaging/"]')) return true;
+  if (document.querySelector('a[href*="/notifications/"]')) return true;
+  // Check if we're on linkedin.com and not on login/signup pages
+  const url = window.location.href;
+  if (url.includes('/login') || url.includes('/signup') || url.includes('/checkpoint/')) return false;
+  // If on linkedin.com/in/ or /search/ or /feed, assume logged in
+  if (url.includes('/in/') || url.includes('/search/') || url.includes('/feed')) return true;
+  return false;
+}
+
+// CAPTCHA detection — only flag actual visible challenge pages
+function isCaptchaVisible() {
+  // Check if we're on a challenge/checkpoint URL
+  if (window.location.href.includes('/checkpoint/challenge')) return true;
+  // Check for visible CAPTCHA elements
+  const challenge = document.querySelector('#captcha-challenge');
+  if (challenge && challenge.offsetParent !== null) return true;
+  const dialog = document.querySelector('.challenge-dialog');
+  if (dialog && dialog.offsetParent !== null) return true;
+  // Don't count hidden iframes
+  return false;
 }
 
 // Debug: inspect the page structure for search results
