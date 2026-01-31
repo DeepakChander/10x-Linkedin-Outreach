@@ -1,8 +1,0 @@
-{
-  "includeCoAuthoredBy": false,
-  "statusLine": {
-    "type": "command",
-    "command": "node .claude/statusline.cjs",
-    "padding": 0
-  }
-}

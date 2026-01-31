@@ -1,566 +1,400 @@
-# 10x Outreach Skill
+# 10X LinkedIn Outreach
 
-<div align="center">
+A focused LinkedIn outreach automation skill for [Claude Code](https://docs.anthropic.com/en/docs/claude-code). Discover profiles, send personalized connection requests, and message accepted connections — all from your terminal.
 
-**Visual Workflow Canvas + Multi-Platform Outreach Automation + IT Operations Support for Claude Code**
-
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet?style=for-the-badge)](https://claude.ai/code)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![Platforms](https://img.shields.io/badge/Platforms-LinkedIn%20%7C%20Twitter%20%7C%20Instagram%20%7C%20Gmail-blue?style=for-the-badge)](#)
-[![IT Support](https://img.shields.io/badge/IT%20Support-Enterprise%20Ready-orange?style=for-the-badge)](#-it-operations-support)
-
-[Installation](#-one-line-installation) • [Quick Start](#-quick-start) • [Visual Canvas](#-visual-workflow-canvas) • [IT Support](#-it-operations-support) • [Commands](#-commands) • [Templates](#-templates)
-
-</div>
+**Built by [1to10x.in](https://1to10x.in)**
 
 ---
 
-## What is This?
+## What Is This?
 
-**10x Outreach Skill** is a Claude Code skill that gives you:
+This is a Claude Code skill that automates LinkedIn outreach in 3 steps:
 
-1. **TLDraw Canvas** - Official TLDraw SDK providing an infinite canvas for design and collaboration
-2. **13+ Automation Skills** - LinkedIn, Twitter, Instagram, Gmail automation via ClaudeKit Browser Extension
-3. **85+ Message Templates** - Professional, customizable templates for all platforms
-4. **Team Management** - Multiple team members with their own credentials
-5. **IT Operations Support** - Ticket management, SLA tracking, AI analysis, and enterprise features
+1. **Discover** — Search LinkedIn for target profiles by industry, role, location
+2. **Connect** — Send personalized connection requests (or InMails for 3rd-degree)
+3. **Message** — Follow up with accepted connections using smart template selection
+
+It uses a Chrome extension as a bridge between Claude Code and LinkedIn's UI. No LinkedIn API keys needed — it works through browser automation with human-like delays.
 
 ---
 
-## 🚀 One-Line Installation
+## Why Use This?
 
-### macOS / Linux
+| Problem | Solution |
+|---------|----------|
+| Manually searching LinkedIn is slow | `/discover` scrapes up to 100 profiles at once |
+| Writing personalized notes for each person | AI fills templates using deep profile scans |
+| Tracking who you sent requests to | `profiles.json` tracks every profile's lifecycle |
+| Hitting LinkedIn limits and getting flagged | Built-in rate limiting (20 connections/day, 2-5 min delays) |
+| Forgetting to follow up | `/message` checks acceptance and sends follow-ups |
+| Losing progress mid-batch | Saves after every single action (resume-safe) |
+
+---
+
+## Architecture
+
+```
+You (Claude Code)
+  │
+  ├── /discover, /connect, /message
+  │
+  ▼
+extension_client.js (Node.js HTTP server on localhost:3456)
+  │
+  ▼
+Chrome Extension (polls server every 500ms)
+  │
+  ▼
+content.js (injected into linkedin.com)
+  │
+  ▼
+LinkedIn DOM (clicks buttons, types messages, scrapes profiles)
+  │
+  ▼
+Results flow back: content.js → extension → server → Claude Code
+```
+
+Zero external dependencies. Only uses Node.js built-in `http` module.
+
+---
+
+## Setup
+
+### Prerequisites
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed
+- Google Chrome
+- Node.js 18+
+- A LinkedIn account
+
+### Step 1: Clone the repo
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Anit-1to10x/10x-outreach-skill/main/install.sh | bash
+git clone https://github.com/DeepakChander/10x-Linkedin-Outreach.git
+cd 10x-Linkedin-Outreach
 ```
 
-### Windows (PowerShell)
-```powershell
-irm https://raw.githubusercontent.com/Anit-1to10x/10x-outreach-skill/main/install.ps1 | iex
-```
+### Step 2: Load the Chrome Extension
+1. Open Chrome and go to `chrome://extensions`
+2. Toggle **Developer mode** ON (top right)
+3. Click **Load unpacked**
+4. Select the `extension/` folder from this project
+5. You should see **"10X LinkedIn"** appear with a red "OFF" badge
 
-**What the installer does:**
-- ✅ Checks for Node.js & Python
-- ✅ Installs all dependencies (npm & pip)
-- ✅ Runs interactive setup wizard for API keys
-- ✅ Creates workspace directories
-- ✅ Sets up browser extension
+### Step 3: Log into LinkedIn
+1. Open a new Chrome tab
+2. Go to `linkedin.com` and log in
+3. Keep this tab open while using the skill
 
-### Manual Installation
+### Step 4: Test the connection
 ```bash
-# Clone the repository
-git clone https://github.com/Anit-1to10x/10x-outreach-skill.git
-cd 10x-outreach-skill
-
-# Install dependencies
-cd canvas && npm install && cd ..
-pip install -r requirements.txt
-
-# Run interactive setup wizard
-node setup.js
+# Start the bridge server
+node .claude/scripts/extension_client.js --server
 ```
+The extension badge should turn green ("ON").
 
-### Requirements
-
-- **Node.js 18+** - [Download](https://nodejs.org/)
-- **Python 3.8+** - [Download](https://www.python.org/downloads/)
-- **Git** - [Download](https://git-scm.com/downloads)
-
-### Configuration
-
-After installation, you'll be guided through an **interactive setup wizard** that collects:
-
-**Required:**
-- 🔑 Exa AI API Key (prospect enrichment)
-- 🔑 Google OAuth credentials (Gmail integration)
-- 📧 Sender email address
-
-**Optional:**
-- 🤖 Gemini AI API Key (multimodal features)
-- 🎨 Canva credentials (design automation)
-- 🧠 Anthropic API Key (advanced AI features)
-
-**To reconfigure later:**
+In another terminal:
 ```bash
-node setup.js
+node .claude/scripts/extension_client.js ping
+```
+Expected output: `{"success": true, "ready": true, "loggedIn": true}`
+
+### Step 5: Open Claude Code
+```bash
+claude
+```
+You now have access to `/discover`, `/connect`, and `/message`.
+
+---
+
+## Commands
+
+### `/discover` — Find LinkedIn Profiles (Step 1)
+
+Searches LinkedIn and saves matching profiles to `output/profiles.json`.
+
+**What it does:**
+1. Asks you for search filters (industry, role, location, company size, keywords)
+2. Builds a LinkedIn search URL from your filters
+3. Scrapes profile cards across up to 10 pages (~100 profiles)
+4. Deduplicates against existing profiles in your database
+5. Saves new profiles with status `"discovered"`
+
+**Example:**
+```
+You: /discover
+Claude: What industry? → SaaS
+Claude: What role? → CTO
+Claude: What location? → San Francisco
+Claude: Found 47 new profiles (3 duplicates skipped). Batch: 2026-01-31-saas-cto
+```
+
+**What gets saved per profile:**
+```json
+{
+  "id": "a1b2c3d4",
+  "name": "Jane Doe",
+  "headline": "CTO at Acme Corp",
+  "location": "San Francisco Bay Area",
+  "profileUrl": "https://www.linkedin.com/in/janedoe",
+  "degree": "2nd",
+  "status": "discovered",
+  "batch_id": "2026-01-31-saas-cto",
+  "created_at": "2026-01-31T10:00:00Z"
+}
 ```
 
 ---
 
-## ⚡ Quick Start
+### `/connect` — Send Connection Requests (Step 2)
 
-### Step 1: Start the Visual Canvas
+Sends personalized connection requests to all discovered profiles. Falls back to InMail for 3rd-degree connections.
 
-Open Claude Code in any project directory and say:
+**What it does:**
+1. Reads `output/profiles.json` and filters `status === "discovered"`
+2. Shows you the list and asks for **one-time approval**
+3. For each profile:
+   - Deep scans the profile (name, headline, about, experience, posts, followers)
+   - If Connect button exists → fills connection note template → sends request
+   - If no Connect button (3rd degree) → fills InMail template → sends InMail
+   - Waits 2-5 minutes (randomized) before the next one
+   - Saves progress after every single action
+4. Stops automatically at daily limits or if LinkedIn shows a warning
 
+**Connection note template** (max 300 chars):
 ```
-start my app
-```
-
-Or use the slash command:
-
-```
-/start
-```
-
-This automatically:
-- Installs dependencies (if needed)
-- Starts the visual canvas on **http://localhost:3000**
-- Opens the workflow designer in your browser
-
-### Step 2: Design Your Workflow
-
-1. **Add Nodes** - Click skill buttons in the toolbar (Discovery, LinkedIn, Twitter, etc.)
-2. **Connect Nodes** - Drag from green **▶** (output) to blue **◀** (input)
-3. **Configure** - Click any node to set its options
-4. **Run** - Click the Run button to export your workflow
-
-### Step 3: Execute Your Workflow
-
-```
-/workflow run
+Hi {{first_name}}, your {{specific_insight}} at {{company}} caught my attention.
+I'm exploring how leaders like you are approaching AI in practice. Would love to connect.
 ```
 
-Claude Code reads the workflow JSON and executes each step with intelligent delays.
+**Error handling:**
+| Error | What happens |
+|-------|-------------|
+| Weekly invitation limit | Stops immediately, reports partial progress |
+| CAPTCHA detected | Pauses, tells you to solve it manually |
+| Already connected | Marks profile, skips to `/message` |
+| Pending request | Skips |
+| Profile not found (404) | Marks as `"profile_not_found"` |
 
 ---
 
-## 🎨 TLDraw Canvas
+### `/message` — Message Accepted Connections (Step 3)
 
-An infinite canvas powered by the official **TLDraw SDK** for visual design and collaboration.
+Checks which connection requests were accepted, then sends personalized follow-up messages.
 
-### Canvas Features (Official TLDraw SDK)
-
-| Feature | Description |
-|---------|-------------|
-| **Infinite Canvas** | Pan and zoom freely across unlimited space |
-| **Drawing Tools** | Draw, write, add shapes, images, and videos |
-| **Selection & Transform** | Click to select, drag to multi-select, transform shapes |
-| **Copy/Paste** | Standard clipboard operations with full fidelity |
-| **Undo/Redo** | Complete history tracking of all changes |
-| **Export** | Export as PNG, SVG, or JSON snapshot |
-| **Auto-Save** | Automatic persistence to localStorage |
-| **Programmatic Control** | Full API access via Editor instance |
-
-### Basic TLDraw Usage
-
-The canvas runs at **http://localhost:3000** with the standard TLDraw interface:
-
-1. **Draw & Write** - Use toolbar to select drawing tools
-2. **Add Shapes** - Rectangle, ellipse, arrow, line, text, etc.
-3. **Add Media** - Embed images and videos
-4. **Pan & Zoom** - Mouse drag to pan, scroll to zoom
-5. **Selection** - Click to select, drag to multi-select
-6. **Copy/Paste** - Standard keyboard shortcuts work
-7. **Undo/Redo** - Full history support
-
-### Export Options
-
-- **PNG** - Raster image export
-- **SVG** - Vector export for scalability
-- **JSON** - Full snapshot for persistence and sharing
+**What it does:**
+1. Reads `output/profiles.json` and filters `status === "connection_sent"`
+2. Groups profiles by date and recommends timing:
+   ```
+   Ready to check 52 profiles:
+   - 30 from yesterday (good to check now)
+   - 17 from today (may be too early)
+   - 5 from 3+ days ago (overdue)
+   ```
+3. Checks each profile's connection status on LinkedIn
+4. For accepted connections:
+   - Deep scans the profile
+   - Auto-selects the best message template (see Template Selection below)
+   - Fills template variables from profile data
+5. Shows you the first 3 messages for preview
+6. After **one-time approval**, sends all messages with 30-60s delays
+7. Marks stale profiles: 7+ days with no acceptance → `"cold"`, 14+ days → `"archived"`
 
 ---
 
-## 📋 Commands
+## Template Selection
 
-### Core Commands
+The skill automatically picks the right message template based on the profile:
 
-| Command | Description |
-|---------|-------------|
-| `/start` | **Start the visual canvas** on localhost:3000 |
-| `/canvas` | Open the workflow canvas |
-| `/workflow` | Create and run multi-platform workflows |
-| `/exa` | **Search the web with Exa AI semantic search** |
-| `/websets` | **Create and manage curated web collections** |
+| Priority | Condition | Template | Tone |
+|----------|-----------|----------|------|
+| 1 | CXO/Director + company >200 employees | `option_3_formal` | Professional, enterprise-focused |
+| 2 | Founder + "building/scaling/growing" in headline + company <200 | `option_5_future_facing` | Confident, growth-oriented |
+| 3 | Founder/CEO/CTO (general) | `option_1_brand_invite` | Brand-forward, value proposition |
+| 4 | 5000+ followers OR "creator/speaker/advisor" in headline | `option_4_collaboration` | Partnership framing |
+| 5 | VP/Director + posts about AI/marketing/growth | `option_2_featured_voice` | "Featured voice" positioning |
+| 6 | 2nd degree + active poster | `base_draft` | Casual, no brand mention |
+| 7 | Fallback (none of the above) | `option_1_brand_invite` | Default |
 
-### Platform Commands
-
-| Command | Description |
-|---------|-------------|
-| `/linkedin` | LinkedIn actions (connect, message, like, comment) |
-| `/twitter` | Twitter actions (follow, DM, like, reply, retweet) |
-| `/instagram` | Instagram actions (follow, DM, like, comment, story) |
-
-### Email Commands
-
-| Command | Description |
-|---------|-------------|
-| `/outreach` | Email campaigns from Google Sheets |
-| `/compose` | Write individual emails |
-| `/inbox` | Read and search Gmail |
-| `/reply` | Reply to emails |
-| `/summarize` | Get email digests |
-
-### Discovery & Management Commands
-
-| Command | Description |
-|---------|-------------|
-| `/discover` | Find people using Exa AI |
-| `/team` | Manage team members and credentials |
+All templates use these variables filled from deep profile scans:
+- `{{first_name}}` — First name
+- `{{company}}` — Current company
+- `{{headline}}` — Their LinkedIn headline
+- `{{specific_insight}}` — Extracted from their about section, recent posts, or experience
+- `{{role}}` — Job title
+- `{{industry}}` — Industry
+- `{{sender_name}}` — Your name
 
 ---
 
-## 🛠 Skills
+## Profile Lifecycle
 
-The skill includes **13 automation skills**:
+Every profile goes through a status lifecycle tracked in `output/profiles.json`:
 
-| Skill | File | Description |
-|-------|------|-------------|
-| `start-app` | Start the visual canvas |
-| `canvas-workflow` | Visual workflow designer |
-| `discovery-engine` | Find people with Exa AI |
-| `linkedin-adapter` | LinkedIn automation |
-| `twitter-adapter` | Twitter automation |
-| `instagram-adapter` | Instagram automation |
-| `gmail-adapter` | Gmail sending |
-| `outreach-manager` | Email campaigns |
-| `email-composer` | Individual emails |
-| `inbox-reader` | Read Gmail |
-| `reply-generator` | Generate replies |
-| `email-summarizer` | Email digests |
-| `team-manager` | Team credentials |
-| `workflow-engine` | Multi-platform sequences |
+```
+discovered ──→ connection_sent ──→ accepted ──→ message_sent
+                    │                  │
+                    │                  ├──→ pending ──→ cold (7d) ──→ archived (14d)
+                    │                  │
+                    │                  └──→ declined
+                    │
+                    └──→ inmail_sent (already got a message)
 
----
-
-## 📝 Templates
-
-**85+ pre-built templates** across 4 platforms:
-
-| Platform | Count | Categories |
-|----------|-------|------------|
-| **LinkedIn** | 24 | Connection requests, Messages, InMails, Comments |
-| **Twitter** | 22 | DMs, Replies, Tweets, Quote tweets |
-| **Instagram** | 22 | DMs, Comments, Story replies |
-| **Email** | 18 | Outreach, Follow-ups, Newsletters, Promotional |
-
-### Using Templates
-
-Templates use `{{variables}}` for personalization:
-
-```markdown
-Hi {{first_name}},
-
-I saw your work on {{topic}} and thought it was impressive.
-Would love to connect and learn more about {{company}}.
-
-Best,
-{{sender_name}}
+discovered ──→ already_connected (skip to /message)
+discovered ──→ profile_not_found (dead link)
 ```
 
 ---
 
-## 🔄 Pre-Built Workflows
+## Rate Limits
 
-Located in `.claude/workflows/examples/`:
+Built-in rate limiting prevents LinkedIn from flagging your account:
 
-| Workflow | Duration | Platforms | Use Case |
-|----------|----------|-----------|----------|
-| **B2B Professional** | 14 days | LinkedIn + Email | Business outreach |
-| **Brand Outreach** | 21 days | Instagram + Twitter + Email | Brand partnerships |
-| **Influencer** | 21 days | Twitter + Instagram | Content creators |
-| **Investor** | 28 days | Twitter + LinkedIn + Email | Fundraising |
-| **Multi-Platform** | 30 days | All | Adaptive routing |
+| Action | Daily Limit | Delay Between |
+|--------|------------|---------------|
+| Connection requests | 20 | 2-5 minutes |
+| InMails | 10 (50/month) | 2-5 minutes |
+| Messages | 40 | 30-60 seconds |
+| Profile scrapes | 100 | Automatic |
 
----
+Limits are tracked in `output/.limits.json` and reset daily at midnight. Monthly InMail count resets on the 1st.
 
-## ⚙️ Setup
-
-### Requirements
-
-- **Node.js 18+** (for the TLDraw canvas)
-- **Claude Code**
-- **Python 3.9+** (optional, for advanced scripts)
-- **10x-Browser Extension** (ClaudeKit Browser Extension at `C:\Users\Anit\Downloads\10x-Browser Extension`)
-
-### Environment Variables
-
-Create a `.env` file:
-
-```env
-# Gmail OAuth2 (for email features)
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_secret
-SENDER_EMAIL=your@gmail.com
-SENDER_NAME=Your Name
-
-# Exa AI (for discovery)
-EXA_API_KEY=your_exa_key
-
-# Rate Limits (optional)
-LINKEDIN_CONNECTIONS_PER_DAY=20
-TWITTER_FOLLOWS_PER_DAY=50
-INSTAGRAM_FOLLOWS_PER_DAY=30
-```
-
-### Gmail Setup
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable Gmail API
-4. Create OAuth2 credentials (Desktop App)
-5. Add credentials to `.env`
-6. Run `/outreach` to authenticate
+The extension client checks limits **before** every action and refuses to proceed if limits are reached.
 
 ---
 
-## 🏗 Architecture
+## Edge Cases
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     10x OUTREACH SKILL                              │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │              VISUAL WORKFLOW CANVAS (TLDraw)                   │ │
-│  │         http://localhost:3000 - Drag & Drop Designer           │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                              │                                      │
-│                              ▼                                      │
-│                     workflow.json                                   │
-│                              │                                      │
-│                              ▼                                      │
-│  ┌───────────────┐   ┌───────────────┐   ┌───────────────────────┐  │
-│  │   DISCOVERY   │   │   WORKFLOW    │   │    TEAM MANAGER       │  │
-│  │   (Exa AI)    │──▶│    ENGINE     │◀──│  (Multi-user creds)  │  │
-│  └───────────────┘   └───────────────┘   └───────────────────────┘  │
-│                              │                                      │
-│         ┌────────────────────┼────────────────────┐                 │
-│         ▼                    ▼                    ▼                 │
-│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐            │
-│  │  LINKEDIN   │     │   TWITTER   │     │  INSTAGRAM  │            │
-│  │   ADAPTER   │     │   ADAPTER   │     │   ADAPTER   │            │
-│  └─────────────┘     └─────────────┘     └─────────────┘            │
-│         │                    │                    │                 │
-│         └────────────────────┼────────────────────┘                 │
-│                              ▼                                      │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │              10x-BROWSER EXTENSION                             │ │
-│  │            C:\Users\Anit\Downloads\10x-Browser Extension       │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                                                     │
-│  ┌───────────────┐   ┌───────────────┐   ┌───────────────────────┐  │
-│  │     RATE      │   │    TEMPLATE   │   │       GMAIL           │  │
-│  │    LIMITER    │   │     LOADER    │   │       CLIENT          │  │
-│  └───────────────┘   └───────────────┘   └───────────────────────┘  │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
+| Scenario | How It's Handled |
+|----------|-----------------|
+| LinkedIn not logged in | Returns error, tells you to log in |
+| CAPTCHA appears | Pauses all actions, alerts you to solve it manually |
+| Weekly invitation limit (LinkedIn's ~100/week cap) | Stops Step 2, reports partial progress, resume next week |
+| Profile deactivated or 404 | Marks `"profile_not_found"`, skips |
+| Already connected | Marks `"already_connected"`, skips to Step 3 |
+| Existing conversation thread | Skips auto-message, alerts you |
+| Browser closed mid-batch | Resume-safe — picks up from last saved profile |
+| Duplicate profiles across searches | Deduplication by `profileUrl` |
+| Connection note exceeds 300 chars | Truncates to 295 + "..." |
+| InMail monthly quota near limit | Warns at 80%, blocks at 100% |
+| No response after 7 days | Marks `"cold"` |
+| No response after 14 days | Marks `"archived"` |
+| Extension disconnected | Auto-reconnects every 500ms, badge shows red |
+| Slow internet | 20-second element wait timeout, 1 retry before fail |
 
 ---
 
-## 📁 Project Structure
+## Extension Client CLI
 
-```
-10x-outreach-skill/
-├── canvas/                    # TLDraw Canvas (Official SDK)
-│   ├── src/
-│   │   ├── App.tsx            # Clean TLDraw implementation
-│   │   ├── index.css          # Styles
-│   │   └── main.tsx           # Entry point
-│   ├── server.js              # WebSocket server with JWT auth
-│   └── package.json           # Dependencies (tldraw, react)
-│
-├── .claude/                   # Claude Code Skill
-│   ├── skills/                # 13+ skill definitions
-│   ├── commands/              # Slash commands
-│   ├── scripts/               # Python automation
-│   │   ├── gmail_client.py         # Gmail API (threaded replies)
-│   │   ├── ticket_manager.py       # Ticket lifecycle management
-│   │   ├── sla_tracker.py          # SLA monitoring
-│   │   ├── ai_context_analyzer.py  # Claude AI email analysis
-│   │   ├── knowledge_base.py       # Semantic search KB
-│   │   ├── secure_credentials.py   # AES-256 encrypted storage
-│   │   ├── audit_logger.py         # Tamper-proof logging
-│   │   ├── rbac.py                 # Role-based access control
-│   │   ├── multi_tenant.py         # Multi-tenant isolation
-│   │   ├── webhook_api.py          # External integrations
-│   │   └── metrics_collector.py    # Dashboard metrics
-│   ├── templates/             # 85+ message templates
-│   └── workflows/             # Workflow definitions
-│
-├── tickets/                   # Ticket storage
-│   ├── active/                # Active tickets
-│   └── closed/                # Closed tickets
-│
-├── audit_logs/                # Tamper-proof audit logs
-├── knowledge_base/            # KB articles
-├── tenants/                   # Multi-tenant data
-├── webhooks/                  # Webhook configurations
-├── metrics/                   # Metrics snapshots
-├── sla/                       # SLA configurations
-│
-├── output/                    # Runtime output
-│   └── workflows/             # Saved workflow JSONs
-│
-├── install.sh                 # Unix installer
-├── install.ps1                # Windows installer
-├── CLAUDE.md                  # Claude Code instructions
-└── README.md                  # This file
-```
-
----
-
-## 🏢 IT Operations Support
-
-**New in v3.0** - Complete IT Operations Support System with enterprise-grade features.
-
-### Core IT Features
-
-| Feature | Description |
-|---------|-------------|
-| **Ticket Management** | Full lifecycle: create, assign, update, resolve, close |
-| **SLA Tracking** | P1-P4 priorities with automatic escalation |
-| **AI Email Analysis** | Claude-powered intent detection, priority assessment |
-| **Knowledge Base** | Semantic search with response templates |
-| **Audit Logging** | Tamper-proof hash-chained logs |
-
-### Enterprise Features
-
-| Feature | Description |
-|---------|-------------|
-| **RBAC** | Role-based access control (Admin, Agent, Viewer) |
-| **Multi-Tenant** | Isolated configurations per organization |
-| **Webhooks** | External integrations with HMAC signing |
-| **Metrics** | Real-time dashboard with Prometheus export |
-| **Secure Credentials** | AES-256 encrypted storage |
-
-### SLA Definitions
-
-| Priority | Response Time | Resolution Time | Use Case |
-|----------|---------------|-----------------|----------|
-| **P1** | 1 hour | 4 hours | Critical - System down |
-| **P2** | 4 hours | 8 hours | High - Major impact |
-| **P3** | 8 hours | 2 days | Medium - Normal business |
-| **P4** | 24 hours | 7 days | Low - Minor issues |
-
-### IT Support Commands
+The bridge server can also be used directly from the terminal:
 
 ```bash
-# Ticket Management
-python .claude/scripts/ticket_manager.py --list
-python .claude/scripts/ticket_manager.py --create
-python .claude/scripts/ticket_manager.py --stats
+# Start server (stays alive)
+node .claude/scripts/extension_client.js --server
 
-# SLA Tracking
-python .claude/scripts/sla_tracker.py --check-all
-python .claude/scripts/sla_tracker.py --at-risk
-python .claude/scripts/sla_tracker.py --report
+# Test connection
+node .claude/scripts/extension_client.js ping
 
-# AI Analysis
-python .claude/scripts/ai_context_analyzer.py --test
+# Search profiles
+node .claude/scripts/extension_client.js searchProfiles '{"filters":{"keywords":"AI SaaS","location":"USA"}}'
 
-# Knowledge Base
-python .claude/scripts/knowledge_base.py --search "password reset"
-python .claude/scripts/knowledge_base.py --add-sample
+# Deep scan a profile
+node .claude/scripts/extension_client.js deepScan '{"profileUrl":"https://www.linkedin.com/in/janedoe"}'
+
+# Send connection request
+node .claude/scripts/extension_client.js sendConnection '{"profileUrl":"...","note":"Hi Jane, would love to connect."}'
+
+# Send InMail (Premium only)
+node .claude/scripts/extension_client.js sendInMail '{"profileUrl":"...","subject":"Quick question","body":"Hi..."}'
+
+# Check if connection was accepted
+node .claude/scripts/extension_client.js checkAcceptance '{"profileUrl":"..."}'
+
+# Send message to connection
+node .claude/scripts/extension_client.js sendMessage '{"profileUrl":"...","message":"Hi Jane, thanks for connecting!"}'
+
+# Check rate limits
+node .claude/scripts/extension_client.js getLimits
+
+# Check server status
+node .claude/scripts/extension_client.js getStatus
 ```
 
-### New Environment Variables
+---
 
-```env
-# Security (auto-generated on first run)
-CREDENTIAL_MASTER_KEY=<generated>
-AUDIT_SIGNING_KEY=<generated>
-JWT_SECRET=<set-for-production>
+## File Structure
 
-# AI Analysis
-ANTHROPIC_API_KEY=your_anthropic_key
+```
+10x-Linkedin-Outreach/
+├── extension/                      Chrome extension
+│   ├── manifest.json               Manifest V3, LinkedIn-only permissions
+│   ├── background.js               Polls server, routes commands to content script
+│   ├── content.js                  LinkedIn DOM automation (search, connect, message)
+│   ├── popup/
+│   │   ├── popup.html              Extension popup UI
+│   │   ├── popup.css               Dark theme styles
+│   │   └── popup.js                Status display + reconnect
+│   └── icons/                      Extension icons
+│
+├── .claude/
+│   ├── commands/
+│   │   ├── discover.md             Step 1: Search and save profiles
+│   │   ├── connect.md              Step 2: Send connections/InMails
+│   │   └── message.md              Step 3: Message accepted connections
+│   ├── scripts/
+│   │   └── extension_client.js     Node.js HTTP bridge (zero dependencies)
+│   ├── skills/
+│   │   └── linkedin-outreach/
+│   │       └── SKILL.md            Unified skill definition
+│   ├── templates/
+│   │   └── linkedin/
+│   │       ├── connection-note.md  Connection request note (300 char max)
+│   │       ├── inmail-template.md  InMail template with subject line
+│   │       └── messages/
+│   │           ├── base_draft.md           Casual, no brand (2nd degree active)
+│   │           ├── option_1_brand_invite.md Brand-forward (Founder/CEO/CTO)
+│   │           ├── option_2_featured_voice.md Featured voice (VP/Director + AI posts)
+│   │           ├── option_3_formal.md       Formal enterprise (CXO + large company)
+│   │           ├── option_4_collaboration.md Collaboration (high followers/creators)
+│   │           └── option_5_future_facing.md Future-facing (scaling founders)
+│   └── settings.local.json        Bash permissions for node scripts
+│
+├── output/
+│   ├── profiles.json               Profile database (gitignored)
+│   └── .limits.json                Rate limit tracking (gitignored)
+│
+├── CLAUDE.md                       Claude Code project instructions
+├── README.md                       This file
+├── package.json                    Project metadata (zero dependencies)
+├── setup.md                        Visual setup guide for non-technical users
+└── .gitignore                      Ignores profiles, limits, logs, node_modules
 ```
 
 ---
 
-## 🛡 Safety & Rate Limiting
+## Troubleshooting
 
-### Touch Limits (Per Person)
+**Extension badge stays red (OFF)?**
+- Make sure the server is running: `node .claude/scripts/extension_client.js --server`
+- Check that port 3456 is not in use: `lsof -i :3456` or `netstat -an | findstr 3456`
 
-| Target | Max/Day | Max/Week | Total | Cool-Off |
-|--------|---------|----------|-------|----------|
-| Person | 2 | 5 | 8 | 7 days |
-| Brand | 1 | 3 | 6 | 14 days |
-| Influencer | 1 | 2 | 5 | 14 days |
-| Executive | 1 | 2 | 4 | 21 days |
+**"No LinkedIn tab open" error?**
+- Open `linkedin.com` in Chrome and make sure you're logged in
+- The extension only works on `*.linkedin.com` pages
 
-### Platform Rate Limits
+**CAPTCHA appeared?**
+- Solve it manually in the browser
+- Resume your command — it picks up where it left off
 
-| Platform | Action | Daily Limit | Delay |
-|----------|--------|-------------|-------|
-| LinkedIn | Connections | 20 | 2-10 min |
-| LinkedIn | Messages | 50 | 2-10 min |
-| Twitter | Follows | 50 | 1-5 min |
-| Twitter | DMs | 50 | 1-5 min |
-| Instagram | Follows | 30 | 1.5-7 min |
-| Instagram | DMs | 30 | 1.5-7 min |
-| Gmail | Emails | 100 | 1-3 min |
+**Weekly limit reached?**
+- LinkedIn caps at ~100 invitations per week
+- Wait until next week, the skill will stop automatically and save progress
 
-### Key Principles
-
-- **Never spam** - Max 2 touches per day per person
-- **Warm-up first** - Follow and engage BEFORE sending DMs
-- **Platform gaps** - Wait 24+ hours between platforms
-- **Stop on response** - Immediately pause when they reply
-- **Human-like delays** - Randomized timing to avoid detection
+**Extension not loading?**
+- Make sure you're using Chrome (not Firefox/Safari)
+- Check `chrome://extensions` for any error messages
+- Try "Reload" on the extension
 
 ---
 
-
-## 🔧 10x-Browser Extension Integration
-
-The ClaudeKit Browser Extension handles social platform automation for LinkedIn, Twitter, and Instagram.
-
-### Extension Location
-
-`C:\Users\Anit\Downloads\10x-Browser Extension`
-
-### Supported Actions
-
-| Platform | Actions |
-|----------|---------|
-| **LinkedIn** | Connect, message, view profiles, like posts, comment |
-| **Twitter** | Follow, DM, like tweets, reply, retweet |
-| **Instagram** | Follow, DM, like posts, comment, story replies |
-
-### How It Works
-
-1. Install the ClaudeKit Browser Extension in your browser
-2. The extension receives commands from the 10x-Outreach System
-3. Extension performs actions on LinkedIn, Twitter, Instagram
-4. Results are sent back to the system for tracking
-
----
-
-## 🐛 Troubleshooting
-
-### Canvas not starting?
-
-```bash
-cd canvas && npm install && npm run dev -- --port 3000
-```
-
-### Browser Extension not working?
-
-1. Verify the extension is installed in your browser
-2. Check that the extension path is correct: `C:\Users\Anit\Downloads\10x-Browser Extension`
-3. Ensure you're logged into LinkedIn/Twitter/Instagram in your browser
-
-### Gmail issues?
-
-1. Check OAuth2 credentials in `.env`
-2. Run `/outreach` to re-authenticate
-3. Verify token hasn't expired
-
----
-
-## 📄 License
+## License
 
 MIT License - Free to use, modify, and distribute.
-
----
-
-<div align="center">
-
-**Built with Claude Code**
-
-[Report Bug](https://github.com/Anit-1to10x/10x-outreach-skill/issues) • [Request Feature](https://github.com/Anit-1to10x/10x-outreach-skill/issues)
-
-</div>

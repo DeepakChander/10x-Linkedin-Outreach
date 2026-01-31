@@ -1,82 +1,8 @@
-# =============================================================================
-# 100X Outreach System - Git Ignore
-# =============================================================================
-
-# Environment files (contain secrets)
-.env
-.env.local
-.env.*.local
-
-# Node.js
 node_modules/
-canvas/node_modules/
-canvas/dist/
-.npm/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Temporary/Windows
-nul
-*.nul
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-ENV/
-.eggs/
-*.egg-info/
-dist/
-build/
-
-# Credentials (sensitive data)
-credentials/
-*.pickle
-*.json.bak
-token.pickle
-token.json
-
-# Campaign data (may contain personal info)
-campaigns/active/
-campaigns/completed/
-campaigns/logs/
-
-# Discovery data (personal info)
-output/discovery/
-
-# Logs
-output/logs/
+output/profiles.json
+output/.limits.json
+.env
 *.log
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-
-# Sent emails and drafts (may contain sensitive content)
-output/sent/
-output/drafts/
-
-# Keep directory structure but ignore contents
-!credentials/.gitkeep
-!campaigns/active/.gitkeep
-!campaigns/completed/.gitkeep
-!campaigns/logs/.gitkeep
-!output/discovery/.gitkeep
-!output/logs/.gitkeep
-!output/sent/.gitkeep
-!output/drafts/.gitkeep
+extension/icons/*.png

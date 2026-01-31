@@ -1,42 +1,47 @@
-# Discover Command
+---
+allowed-tools: Bash, Read, Write
+description: "Find LinkedIn profiles by search filters"
+---
 
-Routes to `discovery-engine` skill for finding people to reach out to using Exa AI.
+# /discover — Find LinkedIn Profiles
 
-## Usage
+## Instructions
 
-```
-/discover [query]
-```
+1. Ask the user for search filters:
+   - **Industry** (e.g., SaaS, FinTech, HealthTech)
+   - **Role/Title** (e.g., CTO, VP Engineering, Founder)
+   - **Location** (e.g., USA, San Francisco, Europe)
+   - **Company size** (e.g., 50-200, startup, enterprise)
+   - **Keywords** (optional, extra search terms)
 
-## Actions
+2. Build the filters JSON from their response.
 
-- `/discover` - Start interactive discovery session
-- `/discover <query>` - Search for people matching query
-- `/discover list` - Show discovered people
-- `/discover stats` - Show discovery statistics
-- `/discover export` - Export discovered people to CSV/JSON
-
-## Examples
-
-```
-/discover AI startup founders in NYC
-/discover DevOps engineers at Series B startups
-/discover list --has-linkedin
-/discover export --format csv
+3. Run the search:
+```bash
+node .claude/scripts/extension_client.js searchProfiles '{"filters":{"keywords":"<keywords>","industry":"<industry>","location":"<location>"},"maxPages":10}'
 ```
 
-## Search Tips
+4. Read existing `output/profiles.json` (create if missing, start with `[]`).
 
-- Be specific: "AI startup founders Series A San Francisco"
-- Include location when relevant
-- Specify role, industry, and company stage
-- Use tags to organize results
+5. Deduplicate: skip any profile whose `profileUrl` already exists in profiles.json.
 
-## Skill Reference
+6. For each new profile, add to profiles.json:
+```json
+{
+  "id": "<generate-uuid>",
+  "name": "<name>",
+  "headline": "<headline>",
+  "location": "<location>",
+  "profileUrl": "<url>",
+  "degree": "<degree>",
+  "status": "discovered",
+  "batch_id": "<YYYY-MM-DD>-<industry>-<role>",
+  "created_at": "<ISO timestamp>"
+}
+```
 
-This command uses the `discovery-engine` skill located at `.claude/skills/discovery-engine/SKILL.md`.
+7. Write updated profiles.json.
 
-Uses Exa AI MCP for intelligent search:
-- `linkedin_search_exa` - LinkedIn people search
-- `company_research_exa` - Company research
-- `web_search_exa` - Cross-platform profile discovery
+8. Report: "Found **N** new profiles (M duplicates skipped). Batch: `<batch_id>`"
+
+9. Suggest: "Run `/connect` to send connection requests to these profiles."
