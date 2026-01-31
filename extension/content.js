@@ -1,3 +1,5 @@
+// Guard against multiple injections — remove old listener if re-injected
+if(window.__10X_LISTENER){try{chrome.runtime.onMessage.removeListener(window.__10X_LISTENER)}catch{}}
 window.__10X_CONTENT_READY=true;
 const S={
   connectButton:['button[aria-label*="Invite"][aria-label*="connect"]','button.pvs-profile-actions__action[aria-label*="Connect"]','button[aria-label*="Connect"]'],
@@ -143,11 +145,12 @@ async function sendMessage(args){
 
 async function ping(){const l=await checkLoginStatus();return{success:true,ready:true,loggedIn:l.loggedIn}}
 
-chrome.runtime.onMessage.addListener((msg,sender,sendResponse)=>{
+window.__10X_LISTENER=function(msg,sender,sendResponse){
   if(msg.type!=="10X_COMMAND")return;
   const h={ping,checkLoginStatus,searchProfiles,deepScan:deepScanProfile,sendConnection:sendConnectionRequest,sendInMail,checkConnectionStatus,checkAcceptance:checkConnectionStatus,sendMessage,detectWeeklyLimit:async()=>({success:true,limitReached:!!$q(S.weeklyLimitModal)})};
   const fn=h[msg.command];
   if(!fn){sendResponse({success:false,error:"Unknown: "+msg.command});return}
   fn(msg.args).then(sendResponse).catch(e=>sendResponse({success:false,error:e.message}));
   return true;
-});
+};
+chrome.runtime.onMessage.addListener(window.__10X_LISTENER);

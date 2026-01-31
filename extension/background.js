@@ -22,23 +22,27 @@ async function poll(){
   }
 }
 
+async function ensureContentScript(tabId){
+  // Always inject content.js — this re-registers the onMessage listener
+  // even if __10X_CONTENT_READY was set by a previous (now stale) injection.
+  try{
+    await chrome.scripting.executeScript({target:{tabId},files:['content.js']});
+    await new Promise(r=>setTimeout(r,500));
+    return{ok:true};
+  }catch(e){
+    return{ok:false,error:e.message};
+  }
+}
+
 async function executeCommand(data){
   try{
     const tabs=await chrome.tabs.query({url:'*://*.linkedin.com/*'});
     if(!tabs.length){await postResult(data.id,{success:false,error:'No LinkedIn tab open. Please open linkedin.com in Chrome.'});setBadge('connected');return}
     const tab=tabs[0];
-    // Ensure content script is injected and ready
-    let contentReady=false;
-    try{
-      const results=await chrome.scripting.executeScript({target:{tabId:tab.id},func:()=>!!window.__10X_CONTENT_READY});
-      contentReady=results&&results[0]&&results[0].result===true;
-    }catch(e){contentReady=false}
-    if(!contentReady){
-      try{await chrome.scripting.executeScript({target:{tabId:tab.id},files:['content.js']})}
-      catch(e){await postResult(data.id,{success:false,error:'Cannot inject content script: '+e.message});setBadge('connected');return}
-      await new Promise(r=>setTimeout(r,1500));
-    }
-    // Retry sendMessage up to 3 times in case content script is still initializing
+    // Always re-inject content script to ensure listener is fresh
+    const inject=await ensureContentScript(tab.id);
+    if(!inject.ok){await postResult(data.id,{success:false,error:'Cannot inject content script: '+inject.error});setBadge('connected');return}
+    // Send command with retry
     let result=null;let lastErr=null;
     for(let attempt=0;attempt<3;attempt++){
       try{
@@ -46,10 +50,14 @@ async function executeCommand(data){
         lastErr=null;break;
       }catch(e){
         lastErr=e;
-        if(attempt<2)await new Promise(r=>setTimeout(r,1000));
+        if(attempt<2){
+          // Re-inject and wait before retry
+          await ensureContentScript(tab.id);
+          await new Promise(r=>setTimeout(r,1000));
+        }
       }
     }
-    if(lastErr){await postResult(data.id,{success:false,error:'Content script not responding: '+lastErr.message});setBadge('connected');return}
+    if(lastErr){await postResult(data.id,{success:false,error:'Content script not responding. Try refreshing the LinkedIn tab (F5) and run again. Detail: '+lastErr.message});setBadge('connected');return}
     await postResult(data.id,result);
     if(result&&result.success)await updateDailyCounts(data.command);
   }catch(e){await postResult(data.id,{success:false,error:e.message})}
