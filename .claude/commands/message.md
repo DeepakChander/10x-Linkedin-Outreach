@@ -71,7 +71,7 @@ node .claude/scripts/extension_client.js sendMessage '{"profileUrl":"<url>","mes
 ```
    - Update status to `"message_sent"`, set `messaged_at`
    - Save after each send
-   - Wait 30-60 seconds between messages
+   - Wait 5 seconds between messages
 
 10. Handle stale profiles (no response tracking):
     - If `connected_at` is 7+ days ago and still `"connection_sent"` → mark `"cold"`

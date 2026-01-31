@@ -272,9 +272,9 @@ Built-in rate limiting prevents LinkedIn from flagging your account:
 
 | Action | Daily Limit | Delay Between |
 |--------|------------|---------------|
-| Connection requests | 20 | 2-5 minutes |
-| InMails | 10 (50/month) | 2-5 minutes |
-| Messages | 40 | 30-60 seconds |
+| Connection requests | 20 | 5 seconds |
+| InMails | 10 (50/month) | 5 seconds |
+| Messages | 40 | 5 seconds |
 | Profile scrapes | 100 | Automatic |
 
 Limits are tracked in `output/.limits.json` and reset daily at midnight. Monthly InMail count resets on the 1st.

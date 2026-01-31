@@ -63,7 +63,7 @@ node .claude/scripts/extension_client.js getLimits
 
    g. **Save profiles.json after EACH action** (resume-safe)
 
-   h. Wait 2-5 minutes (randomized) before next profile
+   h. Wait 5 seconds before next profile
 
 7. Report: "Sent N connections, M InMails. K skipped (already connected/pending). Stopped: <reason if applicable>"
 

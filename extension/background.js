@@ -182,8 +182,8 @@ async function handleSearchProfiles(tabId, args) {
     if (result.profiles) allProfiles.push(...result.profiles);
     if (!result.hasNextPage) break;
 
-    // Random delay between pages
-    await new Promise(r => setTimeout(r, 2000 + Math.random() * 2000));
+    // Short delay between pages
+    await new Promise(r => setTimeout(r, 3000));
   }
 
   return { success: true, profiles: allProfiles, count: allProfiles.length };
