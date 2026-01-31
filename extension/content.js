@@ -69,30 +69,119 @@ async function checkLoginStatus() {
   return { success: true, loggedIn: ok && !captcha, captcha };
 }
 
+// Debug: inspect the page structure for search results
+async function debugPage() {
+  await sleep(1000);
+  const url = window.location.href;
+  const title = document.title;
+  // Try multiple possible selectors for search result containers
+  const tests = {
+    'li.reusable-search__result-container': document.querySelectorAll('li.reusable-search__result-container').length,
+    '.search-results-container li': document.querySelectorAll('.search-results-container li').length,
+    'div.search-results-container': document.querySelectorAll('div.search-results-container').length,
+    'ul.reusable-search__entity-result-list': document.querySelectorAll('ul.reusable-search__entity-result-list').length,
+    'li[class*="reusable-search"]': document.querySelectorAll('li[class*="reusable-search"]').length,
+    'div[class*="entity-result"]': document.querySelectorAll('div[class*="entity-result"]').length,
+    'span[class*="entity-result__title"]': document.querySelectorAll('span[class*="entity-result__title"]').length,
+    'div[data-view-name="search-entity-result-universal-template"]': document.querySelectorAll('div[data-view-name="search-entity-result-universal-template"]').length,
+    'li.artdeco-list__item': document.querySelectorAll('li.artdeco-list__item').length,
+    'div.mb1 a[href*="/in/"]': document.querySelectorAll('div.mb1 a[href*="/in/"]').length,
+    'a[href*="/in/"]': document.querySelectorAll('a[href*="/in/"]').length,
+    'span[dir="ltr"]': document.querySelectorAll('span[dir="ltr"]').length,
+  };
+  // Get first few link hrefs that contain /in/
+  const profileLinks = [...document.querySelectorAll('a[href*="/in/"]')].slice(0, 5).map(a => {
+    // Walk up the DOM to find ancestor structure
+    const ancestors = [];
+    let el = a;
+    for (let i = 0; i < 8 && el; i++) { ancestors.push(el.tagName + '.' + (el.className || '').substring(0, 40)); el = el.parentElement; }
+    const li = a.closest('li');
+    return { href: a.href, text: a.textContent.trim().substring(0, 50), parent: a.parentElement?.tagName, hasLi: !!li, liDepth: li ? ancestors.findIndex(x => x.startsWith('LI')) : -1, ancestors: ancestors.slice(0, 6) };
+  });
+  // Get main content area classes
+  const mainClasses = document.querySelector('main')?.className || 'no main element';
+  // Get all list items in search area
+  const lists = [...document.querySelectorAll('ul')].filter(ul => ul.querySelectorAll('li').length > 3).map(ul => ({ class: ul.className.substring(0, 80), liCount: ul.querySelectorAll('li').length })).slice(0, 5);
+  return { success: true, debug: true, url, title, selectorTests: tests, profileLinks, mainClasses, lists };
+}
+
 // Scrape search results on the CURRENT page (no navigation — background handles that)
+// LinkedIn 2025+: No semantic classes, no <li> cards. All obfuscated divs.
+// Strategy: find all a[href*="/in/"] links, group by URL, extract from ancestors.
 async function scrapeCurrentPage() {
   if ($q(S.captchaChallenge)) return { success: false, error: 'CAPTCHA' };
-  // Wait a moment for results to render
-  await sleep(1000);
-  const cards = $$q(S.searchResultCards);
-  if (!cards.length) return { success: true, profiles: [], hasNextPage: false };
+  await sleep(2000);
+
+  const allLinks = [...document.querySelectorAll('a[href*="/in/"]')];
+  if (!allLinks.length) return { success: true, profiles: [], hasNextPage: false };
+
+  // LinkedIn search results 2025: each result card is an <a> tag wrapping a div structure.
+  // There are 2 links per profile: a big wrapper <a> (with full card text) and a smaller
+  // name-only <a> inside it. We want the wrapper <a> to get the full card text.
+  const urlToCard = new Map();
+  for (const a of allLinks) {
+    const url = a.href.split('?')[0];
+    if (!url.includes('/in/')) continue;
+    // Get the outermost <a> for this profile (the card wrapper)
+    // It's the one whose textContent is longest (contains name + headline + location)
+    const existing = urlToCard.get(url);
+    if (!existing || a.textContent.length > existing.textContent.length) {
+      urlToCard.set(url, a);
+    }
+  }
+
   const profiles = [];
-  for (const card of cards) {
+  for (const [profileUrl, cardLink] of urlToCard) {
     try {
-      const nameEl = $q(S.searchResultName, card), linkEl = $q(S.searchResultLink, card);
-      if (!nameEl || !linkEl) continue;
-      const headlineEl = $q(S.searchResultHeadline, card), locationEl = $q(S.searchResultLocation, card);
-      profiles.push({
-        name: nameEl.textContent.trim(),
-        headline: headlineEl ? headlineEl.textContent.trim() : '',
-        location: locationEl ? locationEl.textContent.trim() : '',
-        profileUrl: linkEl.href.split('?')[0],
-        degree: card.textContent.includes('2nd') ? '2nd' : card.textContent.includes('3rd') ? '3rd' : '1st'
-      });
+      const fullText = cardLink.textContent.trim();
+      if (!fullText || fullText.length < 3) continue;
+
+      // Also find the short name-only link (smallest text for this URL)
+      let name = '';
+      for (const a of allLinks) {
+        if (a.href.split('?')[0] === profileUrl) {
+          const t = a.textContent.trim();
+          if (t && t.length > 1 && t.length < 60) {
+            if (!name || t.length < name.length) name = t;
+          }
+        }
+      }
+      name = name.replace(/\s*[•·]\s*(1st|2nd|3rd|[\d]+\+?).*/g, '').trim();
+      if (!name || name === 'LinkedIn Member') continue;
+
+      // Parse the full card text to extract headline and location
+      // Format is usually: "Name • 2nd\nHeadline text\nLocation\n..."
+      // Split by newlines and bullet separators
+      const lines = fullText.split(/\n/).map(l => l.trim()).filter(l => l && l.length > 1);
+
+      const degree = fullText.includes('2nd') ? '2nd' : fullText.includes('3rd') ? '3rd' : '1st';
+
+      // Find headline: first substantial line that isn't the name and isn't a button label
+      let headline = '';
+      let location = '';
+      const skipWords = ['connect', 'message', 'follow', 'pending', 'send', 'inmailmessage', 'view profile'];
+      for (const line of lines) {
+        const lower = line.toLowerCase();
+        // Skip the name line, degree markers, button labels
+        if (line === name || lower.includes(name.toLowerCase())) continue;
+        if (/^(1st|2nd|3rd|•|·)/.test(line)) continue;
+        if (skipWords.some(w => lower.startsWith(w))) continue;
+        if (line.length < 3) continue;
+
+        // Location heuristic
+        const isLocation = /\b(area|india|states|united|york|francisco|london|bangalore|mumbai|delhi|remote|california|texas|chicago|boston|seattle|singapore|dubai|canada|australia|germany|france|uk|england)\b/i.test(line) || /^[A-Z][a-z]+,\s[A-Z]/.test(line);
+        if (isLocation && !location) { location = line.substring(0, 100); continue; }
+
+        // Headline: first non-name, non-location text that's substantial
+        if (!headline && line.length > 5) { headline = line.substring(0, 200); }
+      }
+
+      profiles.push({ name, headline, location, profileUrl, degree });
     } catch {}
   }
-  const next = $q(S.nextPageButton);
-  return { success: true, profiles, hasNextPage: !!(next && !next.disabled) };
+
+  const next = document.querySelector('button[aria-label="Next"]');
+  return { success: true, profiles, count: profiles.length, hasNextPage: !!(next && !next.disabled) };
 }
 
 // Legacy searchProfiles — kept for backward compat but now just scrapes current page
@@ -172,6 +261,7 @@ window.__10X_LISTENER = function(msg, sender, sendResponse) {
     ping, checkLoginStatus,
     scrapeCurrentPage,
     searchProfiles,
+    debugPage,
     deepScan: deepScanProfile,
     sendConnection: sendConnectionRequest,
     sendInMail,
