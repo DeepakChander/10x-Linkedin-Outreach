@@ -5,4 +5,3 @@ output/.limits.json
 *.log
 .DS_Store
 Thumbs.db
-extension/icons/*.png
