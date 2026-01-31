@@ -137,6 +137,36 @@ async function debugPage() {
   return { success: true, debug: true, url, title, selectorTests: tests, profileLinks, mainClasses, lists };
 }
 
+// Debug: inspect what buttons exist on a profile page
+async function debugProfileButtons() {
+  await sleep(1000);
+  const url = window.location.href;
+  // Find ALL buttons on the page and their aria-labels
+  const buttons = [...document.querySelectorAll('button')].map(b => ({
+    text: b.textContent.trim().substring(0, 60),
+    ariaLabel: b.getAttribute('aria-label') || '',
+    class: (b.className || '').substring(0, 60),
+    visible: b.offsetParent !== null
+  })).filter(b => b.visible && (b.text || b.ariaLabel));
+
+  // Check our specific selectors
+  const connectBtn = $q(S.connectButton);
+  const messageBtn = $q(S.messageButton);
+  const moreBtn = $q(S.moreButton);
+  const pendingBtn = $q(S.pendingLabel);
+  const inmailBtn = $q(S.inmailButton);
+
+  return {
+    success: true, url,
+    connectButton: connectBtn ? { found: true, text: connectBtn.textContent.trim(), ariaLabel: connectBtn.getAttribute('aria-label') } : { found: false },
+    messageButton: messageBtn ? { found: true, text: messageBtn.textContent.trim(), ariaLabel: messageBtn.getAttribute('aria-label') } : { found: false },
+    moreButton: moreBtn ? { found: true, text: moreBtn.textContent.trim() } : { found: false },
+    pendingButton: pendingBtn ? { found: true, text: pendingBtn.textContent.trim() } : { found: false },
+    inmailButton: inmailBtn ? { found: true, text: inmailBtn.textContent.trim() } : { found: false },
+    allButtons: buttons.slice(0, 20)
+  };
+}
+
 // Scrape search results on the CURRENT page (no navigation — background handles that)
 // LinkedIn 2025+: No semantic classes, no <li> cards. All obfuscated divs.
 // Strategy: find all a[href*="/in/"] links, group by URL, extract from ancestors.
@@ -235,17 +265,51 @@ async function deepScanProfile(args) {
   return { success: true, profile: { name, headline, location, about, company, degree, experience, posts, followers: fEl ? fEl.textContent.trim() : '' } };
 }
 
+// Get the profile owner's first name from the page
+function getProfileFirstName() {
+  const h1 = $q(S.profileName);
+  if (h1) return h1.textContent.trim().split(/\s/)[0];
+  return '';
+}
+
+// Find a button whose aria-label contains the profile owner's name
+// This prevents matching sidebar buttons for other people
+function findProfileButton(selectors, firstName) {
+  if (!firstName) return $q(selectors); // fallback to any match
+  for (const sel of (Array.isArray(selectors) ? selectors : [selectors])) {
+    const all = document.querySelectorAll(sel);
+    for (const btn of all) {
+      const label = (btn.getAttribute('aria-label') || '') + ' ' + btn.textContent;
+      if (label.toLowerCase().includes(firstName.toLowerCase())) return btn;
+    }
+  }
+  return null;
+}
+
 async function sendConnectionRequest(args) {
   const { note } = args;
   // Background already navigated to the profile
   if ($q(S.weeklyLimitModal)) return { success: false, error: 'WEEKLY_LIMIT', message: 'Weekly invitation limit reached' };
-  let btn = $q(S.connectButton);
-  if (!btn) { const more = $q(S.moreButton); if (more) { more.click(); await sleep(800); btn = $q(S.connectButton); } }
+
+  const firstName = getProfileFirstName();
+
+  // FIRST check: Is this person already connected? (Message button with their name)
+  const msgBtn = findProfileButton(S.messageButton, firstName);
+  if (msgBtn) return { success: false, error: 'ALREADY_CONNECTED', message: 'Already connected to ' + firstName };
+
+  // Check for pending request
+  const pendBtn = findProfileButton(S.pendingLabel, firstName);
+  if (pendBtn) return { success: false, error: 'PENDING', message: 'Request already pending for ' + firstName };
+
+  // Find the Connect button scoped to this profile's name
+  let btn = findProfileButton(S.connectButton, firstName);
   if (!btn) {
-    if ($q(S.messageButton)) return { success: false, error: 'ALREADY_CONNECTED', message: 'Already connected' };
-    if ($q(S.pendingLabel)) return { success: false, error: 'PENDING', message: 'Request already pending' };
-    return { success: false, error: 'NO_CONNECT_BUTTON', message: 'Connect button not found' };
+    // Try clicking "More" dropdown first
+    const more = findProfileButton(S.moreButton, firstName) || $q(S.moreButton);
+    if (more) { more.click(); await sleep(800); btn = findProfileButton(S.connectButton, firstName); }
   }
+  if (!btn) return { success: false, error: 'NO_CONNECT_BUTTON', message: 'Connect button not found for ' + firstName };
+
   btn.click(); await sleep(1000);
   if (note) {
     const ab = $q(S.addNoteButton);
@@ -294,6 +358,7 @@ window.__10X_LISTENER = function(msg, sender, sendResponse) {
     scrapeCurrentPage,
     searchProfiles,
     debugPage,
+    debugProfileButtons,
     deepScan: deepScanProfile,
     sendConnection: sendConnectionRequest,
     sendInMail,
