@@ -44,7 +44,7 @@ node .claude/scripts/extension_client.js getLimits
    node .claude/scripts/extension_client.js sendConnection '{"profileUrl":"<url>","note":"<filled note>"}'
    ```
 
-   d. If connection fails with NO_CONNECT_BUTTON (3rd degree, no mutual):
+   d. If connection fails with NO_CONNECT_BUTTON or FOLLOW_ONLY (any degree — profile only has Follow button, no Connect):
    - Read `.claude/templates/linkedin/inmail-template.md`
    - Fill variables from deep scan
    ```bash

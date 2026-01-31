@@ -308,7 +308,15 @@ async function sendConnectionRequest(args) {
     const more = findProfileButton(S.moreButton, firstName) || $q(S.moreButton);
     if (more) { more.click(); await sleep(800); btn = findProfileButton(S.connectButton, firstName); }
   }
-  if (!btn) return { success: false, error: 'NO_CONNECT_BUTTON', message: 'Connect button not found for ' + firstName };
+  if (!btn) {
+    // Check if Follow button exists — means not connected but no Connect option
+    const followBtn = [...document.querySelectorAll('button')].find(b => {
+      const label = (b.getAttribute('aria-label') || '') + ' ' + b.textContent.trim();
+      return label.toLowerCase().includes('follow') && label.toLowerCase().includes(firstName.toLowerCase());
+    });
+    if (followBtn) return { success: false, error: 'FOLLOW_ONLY', message: 'Only Follow button found for ' + firstName + '. Use InMail instead.' };
+    return { success: false, error: 'NO_CONNECT_BUTTON', message: 'Connect button not found for ' + firstName };
+  }
 
   btn.click(); await sleep(1000);
   if (note) {
